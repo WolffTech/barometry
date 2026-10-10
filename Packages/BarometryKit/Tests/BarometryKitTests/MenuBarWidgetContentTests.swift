@@ -9,9 +9,19 @@ struct MenuBarWidgetContentTests {
         _ module: MenuBarModule,
         cpuHistory: [CPULoad] = [],
         network: NetworkSample? = nil,
-        battery: BatterySample? = nil
+        battery: BatterySample? = nil,
+        sensors: SensorSample? = nil
     ) -> MenuBarWidgetContent {
-        .make(module: module, cpuHistory: cpuHistory, memory: nil, network: network, battery: battery, locale: locale)
+        .make(
+            module: module,
+            cpuHistory: cpuHistory,
+            gpuHistory: [],
+            memory: nil,
+            network: network,
+            battery: battery,
+            sensors: sensors,
+            locale: locale
+        )
     }
 
     @Test func cpuGraphKeepsMostRecentBars() {
@@ -31,6 +41,18 @@ struct MenuBarWidgetContentTests {
         let network = NetworkSample(interface: "en0", upload: ByteRate(bytesPerSecond: 22_000), download: ByteRate(bytesPerSecond: 44_000))
 
         #expect(content(.network, network: network) == .lines(top: "↑ 22 KB/s", bottom: "↓ 44 KB/s", widthTemplate: "↑ 888 KB/s"))
+    }
+
+    @Test func sensorsShowTemperatureOverPower() {
+        let sensors = SensorSample(cpuTemperature: Temperature(celsius: 43.6), gpuTemperature: nil, systemPower: Power(watts: 3.61), fans: [])
+
+        guard case .lines(let top, let bottom, _) = content(.sensors, sensors: sensors) else {
+            Issue.record("Expected lines")
+            return
+        }
+
+        #expect(top == "44°")
+        #expect(bottom == "3.6 W")
     }
 
     @Test func missingReadingsShowDashes() {

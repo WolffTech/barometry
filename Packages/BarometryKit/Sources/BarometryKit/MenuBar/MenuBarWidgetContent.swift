@@ -16,17 +16,18 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
     static func make(
         module: MenuBarModule,
         cpuHistory: some Collection<CPULoad>,
+        gpuHistory: some Collection<Percent>,
         memory: MemorySample?,
         network: NetworkSample?,
         battery: BatterySample?,
+        sensors: SensorSample?,
         locale: Locale
     ) -> MenuBarWidgetContent {
         switch module {
         case .cpu:
             return .graph(cpuHistory.suffix(graphBarCount).map(\.total.fraction))
         case .gpu:
-            // GPU utilization arrives with the sensors milestone.
-            return .graph([])
+            return .graph(gpuHistory.suffix(graphBarCount).map(\.fraction))
         case .memory:
             return .gauge(memory?.usage.fraction ?? 0)
         case .network:
@@ -36,8 +37,11 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
                 widthTemplate: "↑ 888 KB/s"
             )
         case .sensors:
-            // CPU temperature over system power; readings arrive with the sensors milestone.
-            return .lines(top: "\(missing)°", bottom: "\(missing) W", widthTemplate: "888 W")
+            return .lines(
+                top: sensors?.cpuTemperature?.formatted() ?? "\(missing)°",
+                bottom: sensors?.systemPower?.formatted(locale: locale) ?? "\(missing) W",
+                widthTemplate: "88.8 W"
+            )
         case .battery:
             return .lines(
                 top: battery.map { batteryStatus($0.state, locale: locale) } ?? missing,
@@ -67,6 +71,15 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
 
 extension SystemMonitor {
     public func widgetContent(for module: MenuBarModule, locale: Locale = .autoupdatingCurrent) -> MenuBarWidgetContent {
-        .make(module: module, cpuHistory: cpuHistory, memory: memory, network: network, battery: battery, locale: locale)
+        .make(
+            module: module,
+            cpuHistory: cpuHistory,
+            gpuHistory: gpuHistory,
+            memory: memory,
+            network: network,
+            battery: battery,
+            sensors: sensors,
+            locale: locale
+        )
     }
 }

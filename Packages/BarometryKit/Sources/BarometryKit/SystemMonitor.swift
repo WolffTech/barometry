@@ -8,14 +8,21 @@ struct Snapshot: Sendable {
     var network: NetworkSample?
     var disk: DiskSample?
     var battery: BatterySample?
+    var gpu: GPUSample?
+    var sensors: SensorSample?
+    var frequencies: FrequencySample?
 }
 
 /// Owns the samplers and runs them off the main actor.
 actor SamplingEngine {
     private let logger = Logger(subsystem: "tech.wolff.barometry", category: "Sampling")
-    private var cpu = CPUSampler()
-    private let memory = MemorySampler()
-    private var network = NetworkSampler()
+    // Lazy so setup work (CPU topology, SMC key discovery, IOReport subscription) runs on
+    // the first sample, off the main actor, rather than when the monitor is created.
+    private lazy var cpu = CPUSampler()
+    private lazy var memory = MemorySampler()
+    private lazy var network = NetworkSampler()
+    private lazy var sensors = SensorsSampler()
+    private lazy var frequencies = FrequencySampler()
 
     func sample() -> Snapshot {
         Snapshot(
@@ -23,7 +30,10 @@ actor SamplingEngine {
             memory: attempt("memory") { try memory.sample() },
             network: network.sample(),
             disk: attempt("disk") { try DiskSampler.sample() },
-            battery: BatterySampler.sample()
+            battery: BatterySampler.sample(),
+            gpu: GPUSampler.sample(),
+            sensors: sensors.sample(),
+            frequencies: frequencies.sample()
         )
     }
 
@@ -48,9 +58,13 @@ public final class SystemMonitor {
     public private(set) var network: NetworkSample?
     public private(set) var disk: DiskSample?
     public private(set) var battery: BatterySample?
+    public private(set) var gpu: GPUSample?
+    public private(set) var sensors: SensorSample?
+    public private(set) var frequencies: FrequencySample?
 
     public private(set) var cpuHistory = History<CPULoad>(capacity: historyCapacity)
     public private(set) var networkHistory = History<NetworkSample>(capacity: historyCapacity)
+    public private(set) var gpuHistory = History<Percent>(capacity: historyCapacity)
 
     /// Time between readings. Changing it while running takes a reading immediately.
     public var interval: Duration {
@@ -91,12 +105,18 @@ public final class SystemMonitor {
         network = snapshot.network
         disk = snapshot.disk
         battery = snapshot.battery
+        gpu = snapshot.gpu
+        sensors = snapshot.sensors
+        frequencies = snapshot.frequencies
 
         if let cpu = snapshot.cpu {
             cpuHistory.append(cpu.total)
         }
         if let network = snapshot.network {
             networkHistory.append(network)
+        }
+        if let gpu = snapshot.gpu {
+            gpuHistory.append(gpu.utilization)
         }
     }
 }
