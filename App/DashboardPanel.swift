@@ -1,4 +1,5 @@
 import AppKit
+import BarometryKit
 import SwiftUI
 
 /// Borderless, arrowless panel anchored under a status item.
@@ -7,9 +8,12 @@ final class DashboardPanel: NSPanel {
     private static let gapBelowMenuBar: CGFloat = 6
     private static let screenMargin: CGFloat = 8
 
+    /// Called with `true` when the panel opens and `false` when it closes.
+    var onVisibilityChange: ((Bool) -> Void)?
+
     private var outsideClickMonitor: Any?
 
-    init() {
+    init(monitor: SystemMonitor) {
         super.init(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -24,7 +28,7 @@ final class DashboardPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
-        contentView = NSHostingView(rootView: DashboardView())
+        contentView = NSHostingView(rootView: DashboardView(monitor: monitor))
     }
 
     // Borderless windows refuse key status by default; key status is needed for Esc and ⌘Q.
@@ -61,6 +65,7 @@ final class DashboardPanel: NSPanel {
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
             self?.dismiss()
         }
+        onVisibilityChange?(true)
     }
 
     private func dismiss() {
@@ -69,5 +74,6 @@ final class DashboardPanel: NSPanel {
             self.outsideClickMonitor = nil
         }
         orderOut(nil)
+        onVisibilityChange?(false)
     }
 }
