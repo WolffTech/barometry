@@ -23,7 +23,7 @@ xcodebuild -project Barometry.xcodeproj -scheme Barometry -configuration Debug -
 open build/Build/Products/Debug/Barometry.app
 ```
 
-Barometry has no Dock icon. Quit it from the dashboard or with ⌘Q while the dashboard is open.
+Barometry has no Dock icon. Open Settings (⌘,) or quit (⌘Q) from the dashboard.
 
 ## Test
 

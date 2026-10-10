@@ -3,6 +3,10 @@ import BarometryKit
 import Charts
 import SwiftUI
 
+extension EnvironmentValues {
+    @Entry var temperatureUnit: TemperatureUnit = .celsius
+}
+
 /// Series colors, checked for color-blind separation and contrast in light and dark mode.
 /// Every colored mark sits next to a text label, so color never carries meaning alone.
 enum DashboardPalette {

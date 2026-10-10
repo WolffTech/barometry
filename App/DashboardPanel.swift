@@ -13,7 +13,7 @@ final class DashboardPanel: NSPanel {
 
     private var outsideClickMonitor: Any?
 
-    init(monitor: SystemMonitor) {
+    init(monitor: SystemMonitor, preferences: Preferences, openSettings: @escaping () -> Void) {
         super.init(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -28,7 +28,11 @@ final class DashboardPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
-        contentView = NSHostingView(rootView: DashboardView(monitor: monitor))
+        let dashboard = DashboardView(monitor: monitor, preferences: preferences) { [weak self] in
+            self?.dismiss()
+            openSettings()
+        }
+        contentView = NSHostingView(rootView: dashboard)
     }
 
     // Borderless windows refuse key status by default; key status is needed for Esc and ⌘Q.

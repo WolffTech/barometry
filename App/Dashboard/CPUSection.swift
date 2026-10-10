@@ -8,6 +8,7 @@ struct CPUSection: View {
     let frequency: Frequency?
     let temperature: Temperature?
 
+    @Environment(\.temperatureUnit) private var temperatureUnit
     @State private var hoverSlot: Int?
 
     var body: some View {
@@ -24,7 +25,7 @@ struct CPUSection: View {
     }
 
     private func detail(load: CPULoad?) -> String {
-        [load?.total.formatted(), frequency?.formatted(), temperature?.formatted()]
+        [load?.total.formatted(), frequency?.formatted(), temperature?.formatted(in: temperatureUnit)]
             .compactMap(\.self)
             .joined(separator: " · ")
     }

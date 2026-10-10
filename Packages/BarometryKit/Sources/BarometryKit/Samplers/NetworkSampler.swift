@@ -1,14 +1,14 @@
 import Darwin
 import SystemConfiguration
 
-/// Measures traffic on the primary network interface (the one carrying the default route).
+/// Measures traffic on a chosen interface, or on the primary one (carrying the default route).
 struct NetworkSampler {
     private let store = SCDynamicStoreCreate(nil, "Barometry" as CFString, nil, nil)
     private var tracker = NetworkRateTracker()
 
-    /// Returns nil on the first call, after the primary interface changes, and while offline.
-    mutating func sample() -> NetworkSample? {
-        guard let interface = primaryInterface(), let counters = Self.counters(for: interface) else {
+    /// Returns nil on the first call, after the interface changes, and while it's offline.
+    mutating func sample(interface preferred: String?) -> NetworkSample? {
+        guard let interface = preferred ?? primaryInterface(), let counters = Self.counters(for: interface) else {
             tracker.reset()
             return nil
         }

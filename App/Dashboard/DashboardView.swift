@@ -3,6 +3,8 @@ import SwiftUI
 
 struct DashboardView: View {
     let monitor: SystemMonitor
+    let preferences: Preferences
+    let openSettings: () -> Void
 
     var body: some View {
         // Shows everything when it fits; otherwise the panel caps its height and this scrolls.
@@ -15,23 +17,30 @@ struct DashboardView: View {
         }
         .frame(width: 300)
         .background(.regularMaterial, in: .rect(cornerRadius: 16))
+        .environment(\.temperatureUnit, preferences.temperatureUnit)
+    }
+
+    private func shows(_ section: DashboardSection) -> Bool {
+        !preferences.hiddenDashboardSections.contains(section)
     }
 
     private var content: some View {
         VStack(spacing: 6) {
-            if let battery = monitor.battery {
+            if shows(.battery), let battery = monitor.battery {
                 BatterySection(battery: battery)
             }
-            CPUSection(
-                cpu: monitor.cpu,
-                history: monitor.cpuHistory,
-                frequency: monitor.frequencies?.cpu,
-                temperature: monitor.sensors?.cpuTemperature
-            )
-            if let cpu = monitor.cpu {
+            if shows(.cpu) {
+                CPUSection(
+                    cpu: monitor.cpu,
+                    history: monitor.cpuHistory,
+                    frequency: monitor.frequencies?.cpu,
+                    temperature: monitor.sensors?.cpuTemperature
+                )
+            }
+            if shows(.cores), let cpu = monitor.cpu {
                 CoresSection(cpu: cpu)
             }
-            if let gpu = monitor.gpu {
+            if shows(.gpu), let gpu = monitor.gpu {
                 GPUSection(
                     gpu: gpu,
                     temperature: monitor.sensors?.gpuTemperature,
@@ -40,17 +49,21 @@ struct DashboardView: View {
                     totalMemory: monitor.memory?.total
                 )
             }
-            if let memory = monitor.memory {
+            if shows(.memory), let memory = monitor.memory {
                 MemorySection(memory: memory)
             }
-            if let sensors = monitor.sensors {
+            if shows(.sensors), let sensors = monitor.sensors {
                 SensorsSection(sensors: sensors, frequencies: monitor.frequencies)
             }
-            NetworkSection(network: monitor.network, history: monitor.networkHistory)
-            if let disk = monitor.disk {
+            if shows(.network) {
+                NetworkSection(network: monitor.network, history: monitor.networkHistory)
+            }
+            if shows(.disk), let disk = monitor.disk {
                 DiskSection(disk: disk)
             }
             HStack {
+                Button("Settings…", action: openSettings)
+                    .keyboardShortcut(",")
                 Spacer()
                 Button("Quit Barometry") {
                     NSApplication.shared.terminate(nil)

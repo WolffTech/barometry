@@ -24,11 +24,11 @@ actor SamplingEngine {
     private lazy var sensors = SensorsSampler()
     private lazy var frequencies = FrequencySampler()
 
-    func sample() -> Snapshot {
+    func sample(networkInterface: String?) -> Snapshot {
         Snapshot(
             cpu: attempt("CPU") { try cpu.sample() },
             memory: attempt("memory") { try memory.sample() },
-            network: network.sample(),
+            network: network.sample(interface: networkInterface),
             disk: attempt("disk") { try DiskSampler.sample() },
             battery: BatterySampler.sample(),
             gpu: GPUSampler.sample(),
@@ -75,6 +75,9 @@ public final class SystemMonitor {
         }
     }
 
+    /// BSD name of the interface to measure, or nil for the primary interface.
+    @ObservationIgnored public var networkInterface: String?
+
     @ObservationIgnored private let engine = SamplingEngine()
     @ObservationIgnored private var loop: Task<Void, Never>?
 
@@ -86,7 +89,7 @@ public final class SystemMonitor {
         guard loop == nil else { return }
         loop = Task {
             while !Task.isCancelled {
-                let snapshot = await engine.sample()
+                let snapshot = await engine.sample(networkInterface: networkInterface)
                 guard !Task.isCancelled else { return }
                 apply(snapshot)
                 try? await Task.sleep(for: interval)

@@ -8,13 +8,15 @@ struct GPUSection: View {
     let maximumFrequency: Frequency?
     let totalMemory: ByteCount?
 
+    @Environment(\.temperatureUnit) private var temperatureUnit
+
     var body: some View {
         DashboardCard {
             CardHeader(title: "GPU")
             HStack(spacing: 10) {
                 GaugeRing(fraction: gpu.utilization.fraction, caption: "GPU", value: gpu.utilization.formatted())
                 GaugeRing(fraction: memoryFraction, caption: "Mem", value: gpu.memoryInUse?.formattedCompact() ?? "—")
-                GaugeRing(fraction: temperatureFraction(temperature), caption: "Temp", value: temperature?.formatted() ?? "—")
+                GaugeRing(fraction: temperatureFraction(temperature), caption: "Temp", value: temperature?.formatted(in: temperatureUnit) ?? "—")
                 GaugeRing(
                     fraction: frequencyFraction,
                     caption: "GHz",

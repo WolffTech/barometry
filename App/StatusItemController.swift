@@ -5,8 +5,13 @@ import SwiftUI
 /// Owns the menu bar items, keeps their widgets current, and toggles the dashboard on click.
 final class StatusItemController: NSObject {
     /// Sample faster while the dashboard is open so its graphs feel live.
-    private static let idleInterval = Duration.seconds(2)
     private static let dashboardInterval = Duration.seconds(1)
+
+    /// Which status items exist; they're rebuilt when this changes.
+    private struct ItemLayout: Equatable {
+        let layout: MenuBarLayout
+        let modules: [MenuBarModule]
+    }
 
     /// A status item and the modules drawn into it.
     private struct Slot {
@@ -15,28 +20,58 @@ final class StatusItemController: NSObject {
         var renderedContent: [MenuBarWidgetContent]?
     }
 
-    private let monitor = SystemMonitor(interval: idleInterval)
+    private let preferences: Preferences
+    private let monitor: SystemMonitor
     private let panel: DashboardPanel
     private var slots: [Slot] = []
+    private var itemLayout: ItemLayout?
 
-    override init() {
-        panel = DashboardPanel(monitor: monitor)
+    init(preferences: Preferences, openSettings: @escaping () -> Void) {
+        self.preferences = preferences
+        monitor = SystemMonitor(interval: preferences.refreshInterval.duration)
+        panel = DashboardPanel(monitor: monitor, preferences: preferences, openSettings: openSettings)
         super.init()
-        panel.onVisibilityChange = { [monitor] isVisible in
-            monitor.interval = isVisible ? Self.dashboardInterval : Self.idleInterval
+        panel.onVisibilityChange = { [monitor, preferences] isVisible in
+            monitor.interval = isVisible ? Self.dashboardInterval : preferences.refreshInterval.duration
         }
-
-        // Settings replaces this defaults read in a later milestone. Until then:
-        // defaults write tech.wolff.barometry menuBarLayout combined
-        let layout = UserDefaults.standard.string(forKey: "menuBarLayout").flatMap(MenuBarLayout.init(rawValue:)) ?? .individual
-        buildItems(layout: layout, modules: MenuBarModule.allCases)
-
+        monitor.networkInterface = preferences.networkInterface.bsdName
         monitor.start()
-        observeMonitor()
+        observe()
     }
 
-    private func buildItems(layout: MenuBarLayout, modules: [MenuBarModule]) {
-        switch layout {
+    /// Applies preference changes and re-renders whenever the monitor publishes new readings.
+    private func observe() {
+        withObservationTracking {
+            applyPreferences()
+            renderItems()
+        } onChange: { [weak self] in
+            Task { @MainActor in self?.observe() }
+        }
+    }
+
+    private func applyPreferences() {
+        let wanted = ItemLayout(layout: preferences.menuBarLayout, modules: preferences.menuBarModules.visible)
+        if wanted != itemLayout {
+            rebuildItems(wanted)
+        }
+        let interface = preferences.networkInterface.bsdName
+        if monitor.networkInterface != interface {
+            monitor.networkInterface = interface
+        }
+        let interval = preferences.refreshInterval.duration
+        if !panel.isVisible, monitor.interval != interval {
+            monitor.interval = interval
+        }
+    }
+
+    private func rebuildItems(_ itemLayout: ItemLayout) {
+        // Removed items keep their autosaved positions, so rebuilding doesn't undo ⌘-drags.
+        for slot in slots {
+            NSStatusBar.system.removeStatusItem(slot.item)
+        }
+        self.itemLayout = itemLayout
+        let modules = itemLayout.modules
+        switch itemLayout.layout {
         case .individual:
             // New status items appear to the left of existing ones, so create them in
             // reverse to get the modules in order. The autosave name keeps ⌘-drag positions.
@@ -60,19 +95,10 @@ final class StatusItemController: NSObject {
         return item
     }
 
-    /// Re-renders whenever the monitor publishes new readings.
-    private func observeMonitor() {
-        withObservationTracking {
-            renderItems()
-        } onChange: { [weak self] in
-            Task { @MainActor in self?.observeMonitor() }
-        }
-    }
-
     private func renderItems() {
         for index in slots.indices {
             let modules = slots[index].modules
-            let content = modules.map { monitor.widgetContent(for: $0) }
+            let content = modules.map { monitor.widgetContent(for: $0, temperatureUnit: preferences.temperatureUnit) }
             guard content != slots[index].renderedContent, let button = slots[index].item.button else { continue }
 
             let view = MenuBarItemView(widgets: Array(zip(modules, content)))

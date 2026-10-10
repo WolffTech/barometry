@@ -12,8 +12,8 @@ public struct Temperature: Hashable, Comparable, Sendable {
     }
 
     /// Whole degrees with a bare degree sign, such as "44°".
-    public func formatted(in unit: UnitTemperature = .celsius) -> String {
-        let value = Measurement(value: celsius, unit: UnitTemperature.celsius).converted(to: unit).value
+    public func formatted(in unit: TemperatureUnit = .celsius) -> String {
+        let value = Measurement(value: celsius, unit: UnitTemperature.celsius).converted(to: unit.unit).value
         return "\(Int(value.rounded()))°"
     }
 }

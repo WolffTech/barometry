@@ -10,7 +10,8 @@ struct MenuBarWidgetContentTests {
         cpuHistory: [CPULoad] = [],
         network: NetworkSample? = nil,
         battery: BatterySample? = nil,
-        sensors: SensorSample? = nil
+        sensors: SensorSample? = nil,
+        temperatureUnit: TemperatureUnit = .celsius
     ) -> MenuBarWidgetContent {
         .make(
             module: module,
@@ -20,6 +21,7 @@ struct MenuBarWidgetContentTests {
             network: network,
             battery: battery,
             sensors: sensors,
+            temperatureUnit: temperatureUnit,
             locale: locale
         )
     }
@@ -53,6 +55,17 @@ struct MenuBarWidgetContentTests {
 
         #expect(top == "44°")
         #expect(bottom == "3.6 W")
+    }
+
+    @Test func sensorsUseChosenTemperatureUnit() {
+        let sensors = SensorSample(cpuTemperature: Temperature(celsius: 50), gpuTemperature: nil, systemPower: nil, fans: [])
+
+        guard case .lines(let top, _, _) = content(.sensors, sensors: sensors, temperatureUnit: .fahrenheit) else {
+            Issue.record("Expected lines")
+            return
+        }
+
+        #expect(top == "122°")
     }
 
     @Test func missingReadingsShowDashes() {

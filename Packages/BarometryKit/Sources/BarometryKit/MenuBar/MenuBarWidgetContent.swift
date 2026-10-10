@@ -21,6 +21,7 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
         network: NetworkSample?,
         battery: BatterySample?,
         sensors: SensorSample?,
+        temperatureUnit: TemperatureUnit,
         locale: Locale
     ) -> MenuBarWidgetContent {
         switch module {
@@ -38,7 +39,7 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
             )
         case .sensors:
             return .lines(
-                top: sensors?.cpuTemperature?.formatted() ?? "\(missing)°",
+                top: sensors?.cpuTemperature?.formatted(in: temperatureUnit) ?? "\(missing)°",
                 bottom: sensors?.systemPower?.formatted(locale: locale) ?? "\(missing) W",
                 widthTemplate: "88.8 W"
             )
@@ -70,7 +71,11 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
 }
 
 extension SystemMonitor {
-    public func widgetContent(for module: MenuBarModule, locale: Locale = .autoupdatingCurrent) -> MenuBarWidgetContent {
+    public func widgetContent(
+        for module: MenuBarModule,
+        temperatureUnit: TemperatureUnit,
+        locale: Locale = .autoupdatingCurrent
+    ) -> MenuBarWidgetContent {
         .make(
             module: module,
             cpuHistory: cpuHistory,
@@ -79,6 +84,7 @@ extension SystemMonitor {
             network: network,
             battery: battery,
             sensors: sensors,
+            temperatureUnit: temperatureUnit,
             locale: locale
         )
     }

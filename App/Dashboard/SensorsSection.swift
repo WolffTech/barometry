@@ -5,6 +5,8 @@ struct SensorsSection: View {
     let sensors: SensorSample
     let frequencies: FrequencySample?
 
+    @Environment(\.temperatureUnit) private var temperatureUnit
+
     var body: some View {
         DashboardCard {
             CardHeader(title: "Sensors", detail: sensors.systemPower.map { "\($0.formatted()) system power" })
@@ -12,13 +14,13 @@ struct SensorsSection: View {
                 GaugeRing(
                     fraction: temperatureFraction(sensors.cpuTemperature),
                     caption: "CPU",
-                    value: sensors.cpuTemperature?.formatted() ?? "—",
+                    value: sensors.cpuTemperature?.formatted(in: temperatureUnit) ?? "—",
                     detail: frequencies?.cpu?.formatted()
                 )
                 GaugeRing(
                     fraction: temperatureFraction(sensors.gpuTemperature),
                     caption: "GPU",
-                    value: sensors.gpuTemperature?.formatted() ?? "—",
+                    value: sensors.gpuTemperature?.formatted(in: temperatureUnit) ?? "—",
                     detail: frequencies?.gpu?.formatted()
                 )
                 fanGauge
