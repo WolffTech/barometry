@@ -1,0 +1,73 @@
+import AppKit
+import SwiftUI
+
+/// Borderless, arrowless panel anchored under a status item.
+/// Closes on a click outside the app, on Esc, or when its status item is clicked again.
+final class DashboardPanel: NSPanel {
+    private static let gapBelowMenuBar: CGFloat = 6
+    private static let screenMargin: CGFloat = 8
+
+    private var outsideClickMonitor: Any?
+
+    init() {
+        super.init(
+            contentRect: .zero,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: true
+        )
+        level = .statusBar
+        isFloatingPanel = true
+        hidesOnDeactivate = false
+        isReleasedWhenClosed = false
+        collectionBehavior = [.moveToActiveSpace, .fullScreenAuxiliary]
+        isOpaque = false
+        backgroundColor = .clear
+        hasShadow = true
+        contentView = NSHostingView(rootView: DashboardView())
+    }
+
+    // Borderless windows refuse key status by default; key status is needed for Esc and ⌘Q.
+    override var canBecomeKey: Bool { true }
+
+    func toggle(below button: NSStatusBarButton) {
+        if isVisible {
+            dismiss()
+        } else {
+            show(below: button)
+        }
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        dismiss()
+    }
+
+    private func show(below button: NSStatusBarButton) {
+        guard let buttonWindow = button.window, let screen = buttonWindow.screen, let contentView else { return }
+
+        let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
+        let size = contentView.fittingSize
+        let visible = screen.visibleFrame
+        let x = min(
+            max(anchor.midX - size.width / 2, visible.minX + Self.screenMargin),
+            visible.maxX - size.width - Self.screenMargin
+        )
+        let y = anchor.minY - Self.gapBelowMenuBar - size.height
+        setFrame(NSRect(origin: CGPoint(x: x, y: y), size: size), display: true)
+        makeKeyAndOrderFront(nil)
+
+        // Global monitors only see events sent to other apps, so clicks inside the panel
+        // or on our own status item don't trigger this.
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] _ in
+            self?.dismiss()
+        }
+    }
+
+    private func dismiss() {
+        if let outsideClickMonitor {
+            NSEvent.removeMonitor(outsideClickMonitor)
+            self.outsideClickMonitor = nil
+        }
+        orderOut(nil)
+    }
+}

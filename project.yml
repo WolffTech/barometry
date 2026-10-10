@@ -1,0 +1,40 @@
+name: Barometry
+options:
+  bundleIdPrefix: tech.wolff
+  deploymentTarget:
+    macOS: "26.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+packages:
+  BarometryKit:
+    path: Packages/BarometryKit
+targets:
+  Barometry:
+    type: application
+    platform: macOS
+    sources: [App]
+    dependencies:
+      - package: BarometryKit
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: tech.wolff.barometry
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Barometry
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        # Menu bar only: no Dock icon or app menu.
+        INFOPLIST_KEY_LSUIElement: YES
+        # Sensor access needs IOKit outside the sandbox.
+        ENABLE_APP_SANDBOX: NO
+        ENABLE_HARDENED_RUNTIME: YES
+        SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+        SWIFT_APPROACHABLE_CONCURRENCY: YES
+        # Ad-hoc signing for local builds; Developer ID comes with distribution.
+        CODE_SIGN_STYLE: Manual
+        CODE_SIGN_IDENTITY: "-"
+    scheme:
+      testTargets:
+        - package: BarometryKit/BarometryKitTests
