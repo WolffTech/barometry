@@ -50,8 +50,11 @@ final class DashboardPanel: NSPanel {
         guard let buttonWindow = button.window, let screen = buttonWindow.screen, let contentView else { return }
 
         let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
-        let size = contentView.fittingSize
         let visible = screen.visibleFrame
+        let ideal = contentView.fittingSize
+        // Cap the height to the screen; the dashboard scrolls when capped.
+        let maximumHeight = anchor.minY - Self.gapBelowMenuBar - visible.minY - Self.screenMargin
+        let size = CGSize(width: ideal.width, height: min(ideal.height, maximumHeight))
         let x = min(
             max(anchor.midX - size.width / 2, visible.minX + Self.screenMargin),
             visible.maxX - size.width - Self.screenMargin

@@ -23,10 +23,10 @@ struct DashboardCard<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             content
         }
-        .padding(12)
+        .padding(10)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(.fill.quaternary, in: .rect(cornerRadius: 12))
         .overlay {
@@ -198,4 +198,38 @@ extension History {
     var slotDomain: ClosedRange<Double> {
         -0.5...(Double(capacity) - 0.5)
     }
+}
+
+/// Ring with a caption, a value, and an optional detail line stacked inside.
+struct GaugeRing: View {
+    let fraction: Double
+    var color: Color = DashboardPalette.primary
+    let caption: String
+    let value: String
+    var detail: String?
+
+    var body: some View {
+        Ring(fraction: fraction, color: color, lineWidth: 4) {
+            VStack(spacing: 0) {
+                Text(caption.uppercased())
+                    .font(.system(size: 8, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text(value)
+                    .font(.callout.weight(.medium).monospacedDigit())
+                    .minimumScaleFactor(0.7)
+                if let detail {
+                    Text(detail)
+                        .font(.system(size: 8).monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .lineLimit(1)
+            .padding(6)
+        }
+    }
+}
+
+/// Fraction of a 0–100 °C scale, for temperature gauges.
+func temperatureFraction(_ temperature: Temperature?) -> Double {
+    (temperature?.celsius ?? 0) / 100
 }

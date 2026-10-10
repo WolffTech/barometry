@@ -15,12 +15,12 @@ struct MemorySection: View {
                     ringLabel(memory.usage.formatted(), caption: "Used")
                 }
             }
-            .frame(height: 104)
+            .frame(height: 76)
             .frame(maxWidth: .infinity)
-            VStack(spacing: 4) {
-                LegendRow(color: DashboardPalette.primary, label: "App", value: memory.app.formatted(.memory))
-                LegendRow(color: DashboardPalette.secondary, label: "Wired", value: memory.wired.formatted(.memory))
-                LegendRow(color: DashboardPalette.tertiary, label: "Compressed", value: memory.compressed.formatted(.memory))
+            HStack(alignment: .top, spacing: 4) {
+                legendColumn(DashboardPalette.primary, "App", memory.app)
+                legendColumn(DashboardPalette.secondary, "Wired", memory.wired)
+                legendColumn(DashboardPalette.tertiary, "Compressed", memory.compressed)
             }
         }
     }
@@ -49,6 +49,25 @@ struct MemorySection: View {
         case .warning: "Warning"
         case .critical: "Critical"
         }
+    }
+
+    private func legendColumn(_ color: Color, _ label: String, _ bytes: ByteCount) -> some View {
+        VStack(alignment: .leading, spacing: 1) {
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                Text(label)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.85)
+            }
+            Text(bytes.formatted(.memory))
+                .monospacedDigit()
+                .foregroundStyle(.secondary)
+                .padding(.leading, 13)
+        }
+        .font(.callout)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func ringLabel(_ value: String, caption: String) -> some View {

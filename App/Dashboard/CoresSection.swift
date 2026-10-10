@@ -16,10 +16,10 @@ struct CoresSection: View {
                     }
                 }
             }
-            VStack(spacing: 4) {
+            HStack(spacing: 16) {
                 ForEach([CoreKind.efficiency, .performance], id: \.self) { kind in
                     if let average = cpu.averageLoad(of: kind) {
-                        LegendRow(color: color(for: kind), label: "\(name(for: kind)) Cores", value: average.formatted())
+                        LegendRow(color: color(for: kind), label: name(for: kind), value: average.formatted())
                     }
                 }
             }

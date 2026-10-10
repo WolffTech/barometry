@@ -59,6 +59,6 @@ struct NetworkSection: View {
         .chartXAxis(.hidden)
         .chartYAxis(.hidden)
         .chartHoverSlot($hoverSlot)
-        .frame(height: 56)
+        .frame(height: 40)
     }
 }

@@ -50,6 +50,19 @@ public struct ByteCount: Hashable, Comparable, Sendable {
     }
 }
 
+extension ByteCount {
+    /// Short binary-unit size for tight spaces: whole MB below 1 GB, otherwise GB with
+    /// one decimal, such as "830 MB" or "1.2 GB".
+    public func formattedCompact(locale: Locale = .autoupdatingCurrent) -> String {
+        let gibibyte = 1_073_741_824.0
+        let value = Double(bytes)
+        if value < gibibyte {
+            return (value / 1_048_576).formatted(.number.precision(.fractionLength(0)).locale(locale)) + " MB"
+        }
+        return (value / gibibyte).formatted(.number.precision(.fractionLength(1)).locale(locale)) + " GB"
+    }
+}
+
 public struct ByteRate: Hashable, Comparable, Sendable {
     public let bytesPerSecond: Double
 

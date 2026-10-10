@@ -5,6 +5,8 @@ import SwiftUI
 struct CPUSection: View {
     let cpu: CPUSample?
     let history: History<CPULoad>
+    let frequency: Frequency?
+    let temperature: Temperature?
 
     @State private var hoverSlot: Int?
 
@@ -12,13 +14,19 @@ struct CPUSection: View {
         // While hovering, the legend shows the hovered sample instead of the latest one.
         let shown = hoverSlot.flatMap(history.element(inSlot:)) ?? cpu?.total
         DashboardCard {
-            CardHeader(title: "CPU", detail: shown?.total.formatted())
+            CardHeader(title: "CPU", detail: detail(load: shown))
             chart
             HStack(spacing: 16) {
                 LegendRow(color: DashboardPalette.primary, label: "User", value: shown?.user.formatted() ?? "—")
                 LegendRow(color: DashboardPalette.secondary, label: "System", value: shown?.system.formatted() ?? "—")
             }
         }
+    }
+
+    private func detail(load: CPULoad?) -> String {
+        [load?.total.formatted(), frequency?.formatted(), temperature?.formatted()]
+            .compactMap(\.self)
+            .joined(separator: " · ")
     }
 
     private var chart: some View {
@@ -42,6 +50,6 @@ struct CPUSection: View {
         .chartYAxis(.hidden)
         .chartLegend(.hidden)
         .chartHoverSlot($hoverSlot)
-        .frame(height: 64)
+        .frame(height: 48)
     }
 }

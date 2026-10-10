@@ -34,6 +34,11 @@ struct UnitsTests {
         #expect(bytes.formatted(.file, locale: locale) == "38.65 GB")
     }
 
+    @Test(arguments: [(Int64(870_000_000), "830 MB"), (1_288_490_189, "1.2 GB")])
+    func compactSizeUsesWholeMegabytesOrOneDecimalGigabyte(bytes: Int64, expected: String) {
+        #expect(ByteCount(bytes: bytes).formattedCompact(locale: locale) == expected)
+    }
+
     @Test func diskUsageIsUsedFractionOfTotal() {
         let disk = DiskSample(name: "Macintosh HD", total: ByteCount(bytes: 1_000), available: ByteCount(bytes: 390))
 
