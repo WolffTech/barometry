@@ -11,9 +11,15 @@ final class DashboardPanel: NSPanel {
     /// Called with `true` when the panel opens and `false` when it closes.
     var onVisibilityChange: ((Bool) -> Void)?
 
+    private let monitor: SystemMonitor
+    private let preferences: Preferences
+    private let openSettings: () -> Void
     private var outsideClickMonitor: Any?
 
     init(monitor: SystemMonitor, preferences: Preferences, openSettings: @escaping () -> Void) {
+        self.monitor = monitor
+        self.preferences = preferences
+        self.openSettings = openSettings
         super.init(
             contentRect: .zero,
             styleMask: [.borderless, .nonactivatingPanel],
@@ -28,11 +34,6 @@ final class DashboardPanel: NSPanel {
         isOpaque = false
         backgroundColor = .clear
         hasShadow = true
-        let dashboard = DashboardView(monitor: monitor, preferences: preferences) { [weak self] in
-            self?.dismiss()
-            openSettings()
-        }
-        contentView = NSHostingView(rootView: dashboard)
     }
 
     // Borderless windows refuse key status by default; key status is needed for Esc and ⌘Q.
@@ -51,7 +52,14 @@ final class DashboardPanel: NSPanel {
     }
 
     private func show(below button: NSStatusBarButton) {
-        guard let buttonWindow = button.window, let screen = buttonWindow.screen, let contentView else { return }
+        guard let buttonWindow = button.window, let screen = buttonWindow.screen else { return }
+        // Hosted only while open: a hidden hosting view still re-lays out on every reading.
+        let dashboard = DashboardView(monitor: monitor, preferences: preferences) { [weak self] in
+            self?.dismiss()
+            self?.openSettings()
+        }
+        let contentView = NSHostingView(rootView: dashboard)
+        self.contentView = contentView
 
         let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         let visible = screen.visibleFrame
@@ -81,6 +89,7 @@ final class DashboardPanel: NSPanel {
             self.outsideClickMonitor = nil
         }
         orderOut(nil)
+        contentView = nil
         onVisibilityChange?(false)
     }
 }

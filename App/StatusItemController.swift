@@ -17,7 +17,14 @@ final class StatusItemController: NSObject {
     private struct Slot {
         let item: NSStatusItem
         let modules: [MenuBarModule]
+        /// Reused across renders so SwiftUI updates one view graph instead of building a new one each tick.
+        let renderer = ImageRenderer(content: MenuBarItemView(widgets: []))
         var renderedContent: [MenuBarWidgetContent]?
+
+        init(item: NSStatusItem, modules: [MenuBarModule]) {
+            self.item = item
+            self.modules = modules
+        }
     }
 
     private let preferences: Preferences
@@ -101,8 +108,8 @@ final class StatusItemController: NSObject {
             let content = modules.map { monitor.widgetContent(for: $0, temperatureUnit: preferences.temperatureUnit) }
             guard content != slots[index].renderedContent, let button = slots[index].item.button else { continue }
 
-            let view = MenuBarItemView(widgets: Array(zip(modules, content)))
-            let renderer = ImageRenderer(content: view)
+            let renderer = slots[index].renderer
+            renderer.content = MenuBarItemView(widgets: Array(zip(modules, content)))
             renderer.scale = button.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
             guard let image = renderer.nsImage else { continue }
             image.isTemplate = true

@@ -24,17 +24,32 @@ actor SamplingEngine {
     private lazy var sensors = SensorsSampler()
     private lazy var frequencies = FrequencySampler()
 
+    /// Free space changes slowly, and reading it costs more than every other sampler
+    /// combined (macOS validates volumes over IPC), so it's refreshed less often.
+    private static let diskRefreshInterval = Duration.seconds(60)
+    private var disk: (sample: DiskSample, readAt: ContinuousClock.Instant)?
+
     func sample(networkInterface: String?) -> Snapshot {
         Snapshot(
             cpu: attempt("CPU") { try cpu.sample() },
             memory: attempt("memory") { try memory.sample() },
             network: network.sample(interface: networkInterface),
-            disk: attempt("disk") { try DiskSampler.sample() },
+            disk: diskSample(),
             battery: BatterySampler.sample(),
             gpu: GPUSampler.sample(),
             sensors: sensors.sample(),
             frequencies: frequencies.sample()
         )
+    }
+
+    private func diskSample() -> DiskSample? {
+        let now = ContinuousClock.now
+        if let disk, now - disk.readAt < Self.diskRefreshInterval {
+            return disk.sample
+        }
+        let sample = attempt("disk") { try DiskSampler.sample() }
+        disk = sample.map { ($0, now) }
+        return sample
     }
 
     private func attempt<Sample>(_ name: String, _ read: () throws -> Sample?) -> Sample? {

@@ -66,16 +66,17 @@ private struct BarGraph: View {
     private let plotHeight: CGFloat = 14
 
     var body: some View {
-        let barCount = MenuBarWidgetContent.graphBarCount
-        let padding = barCount - values.count
-        HStack(alignment: .bottom, spacing: barSpacing) {
-            ForEach(0..<barCount, id: \.self) { slot in
-                let height = slot < padding ? 0 : max(values[slot - padding] * plotHeight, 0.5)
-                Rectangle()
-                    .frame(width: barWidth, height: height)
+        let barCount = CGFloat(MenuBarWidgetContent.graphBarCount)
+        // One shape rather than a view per bar keeps re-rendering cheap.
+        Path { path in
+            let offset = MenuBarWidgetContent.graphBarCount - values.count
+            for (index, value) in values.enumerated() {
+                let height = max(value * plotHeight, 0.5)
+                let x = CGFloat(offset + index) * (barWidth + barSpacing)
+                path.addRect(CGRect(x: x, y: plotHeight - height, width: barWidth, height: height))
             }
         }
-        .frame(height: plotHeight, alignment: .bottom)
+        .frame(width: barCount * barWidth + (barCount - 1) * barSpacing, height: plotHeight)
         .padding(2)
         .overlay {
             RoundedRectangle(cornerRadius: 3)
