@@ -1,42 +1,60 @@
-# Barometry
+<p align="center">
+  <img src="Assets/AppIcon.png" width="160" alt="Barometry logo">
+</p>
 
-A macOS menu bar app that shows live system stats, with a detailed dashboard on click. Apple Silicon, macOS 26+.
+<h1 align="center">Barometry</h1>
 
-## Requirements
+<p align="center">
+  Live system stats in your Mac's menu bar, with a detailed dashboard a click away.
+</p>
 
-- Xcode 27 (selected with `xcode-select`)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
+Barometry shows CPU, GPU, memory, network, sensor, and battery readings as compact menu bar graphs and gauges. Click any of them to open a dashboard with per-core load, temperatures, power, clocks, and disk usage.
 
-## Build and run
+## Features
 
-The Xcode project is generated from `project.yml` and isn't checked in. Regenerate it after pulling or after adding, removing, or renaming files.
+- Menu bar modules for CPU, GPU, memory, network, sensors, and battery
+- One menu bar item per module, or a single combined item in the order you choose
+- A dashboard with battery, CPU, per-core, GPU, memory, sensor, network, and disk cards, each of which can be hidden
+- Temperatures in °C or °F, and a choice of network interface
+- A refresh interval of 1, 2, or 5 seconds, with 1-second updates while the dashboard is open
+- Launch at login
+- Under 1% CPU while idle
 
-```zsh
+## Install
+
+Barometry requires an Apple silicon Mac running macOS 26 or later.
+
+There are no releases yet. [Build from source](#build-from-source) to try it.
+
+### Getting started
+
+Barometry lives in the menu bar and has no Dock icon. Click a menu bar item to open the dashboard, then choose **Settings…** (⌘,) to pick modules, the layout, and the refresh interval. Quit from the dashboard or with ⌘Q.
+
+In the individual layout, hold ⌘ and drag menu bar items to rearrange them.
+
+## Build from source
+
+Install Xcode 27 and [XcodeGen](https://github.com/yonaskolb/XcodeGen), then run:
+
+```sh
+brew install xcodegen
+git clone https://github.com/WolffTech/barometry.git
+cd barometry
 xcodegen generate
 open Barometry.xcodeproj
 ```
 
-From the command line:
+The Xcode project is generated from `project.yml` and isn't checked in. Regenerate it after pulling or after adding, removing, or renaming files.
 
-```zsh
-xcodebuild -project Barometry.xcodeproj -scheme Barometry -configuration Debug -derivedDataPath build build
-open build/Build/Products/Debug/Barometry.app
+To build from the command line:
+
+```sh
+xcodebuild -project Barometry.xcodeproj -scheme Barometry -configuration Release -derivedDataPath build build
+open build/Build/Products/Release/Barometry.app
 ```
 
-Barometry has no Dock icon. Open Settings (⌘,) or quit (⌘Q) from the dashboard.
+Logic lives in the `BarometryKit` package and is tested with Swift Testing. Run the tests with ⌘U in Xcode, or:
 
-## Test
-
-Logic lives in the `BarometryKit` package and is tested with Swift Testing:
-
-```zsh
+```sh
 swift test --package-path Packages/BarometryKit
 ```
-
-The `Barometry` scheme also runs these tests (⌘U in Xcode).
-
-## Layout
-
-- `App/`: the app target: status item, dashboard panel, SwiftUI views.
-- `Packages/BarometryKit/`: samplers, models, and other logic with no UI dependency.
-- `project.yml`: XcodeGen project spec.
