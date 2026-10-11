@@ -50,6 +50,9 @@ private struct StackedLabel: View {
                 Text(String(letter))
             }
         }
+        // The three lines barely fit the item height. Without this, a combined item can
+        // offer slightly less height and the letters drop out entirely.
+        .fixedSize()
         .font(.system(size: 7, weight: .semibold))
     }
 }
