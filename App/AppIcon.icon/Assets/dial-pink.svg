@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Flat source artwork for Icon Composer; glass, shadow, and lighting live in icon.json. -->
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <path d="M795.7 608.3A290 290 0 0 1 717.1 753.1" fill="none" stroke="#E0457B" stroke-width="92" stroke-linecap="round"/>
+</svg>

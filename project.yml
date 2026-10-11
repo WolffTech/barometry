@@ -25,6 +25,8 @@ targets:
         GENERATE_INFOPLIST_FILE: YES
         INFOPLIST_KEY_CFBundleDisplayName: Barometry
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        # App/AppIcon.icon, an Icon Composer document.
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         # Menu bar only: no Dock icon or app menu.
         INFOPLIST_KEY_LSUIElement: YES
         # Sensor access needs IOKit outside the sandbox.

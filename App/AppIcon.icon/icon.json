@@ -1,0 +1,63 @@
+{
+  "fill-specializations": [
+    {
+      "value": {
+        "linear-gradient": [
+          "srgb:0.16471,0.18824,0.27059,1.00000",
+          "srgb:0.05490,0.06275,0.10196,1.00000"
+        ]
+      }
+    }
+  ],
+  "groups": [
+    {
+      "name": "Needle",
+      "layers": [
+        {
+          "name": "Needle",
+          "image-name": "needle.svg"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.4
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      }
+    },
+    {
+      "name": "Dial",
+      "layers": [
+        {
+          "name": "Blue",
+          "image-name": "dial-blue.svg"
+        },
+        {
+          "name": "Pink",
+          "image-name": "dial-pink.svg"
+        },
+        {
+          "name": "Yellow",
+          "image-name": "dial-yellow.svg"
+        }
+      ],
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.3
+      },
+      "specular": true,
+      "translucency": {
+        "enabled": true,
+        "value": 0.2
+      }
+    }
+  ],
+  "supported-platforms": {
+    "squares": [
+      "macOS"
+    ]
+  }
+}
