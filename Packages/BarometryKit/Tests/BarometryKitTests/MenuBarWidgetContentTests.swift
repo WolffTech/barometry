@@ -42,13 +42,13 @@ struct MenuBarWidgetContentTests {
     @Test func networkShowsUploadOverDownload() {
         let network = NetworkSample(interface: "en0", upload: ByteRate(bytesPerSecond: 22_000), download: ByteRate(bytesPerSecond: 44_000))
 
-        #expect(content(.network, network: network) == .lines(top: "↑ 22 KB/s", bottom: "↓ 44 KB/s", widthTemplate: "↑ 888 KB/s"))
+        #expect(content(.network, network: network) == .lines(top: "22 KB/s", bottom: "44 KB/s", glyphs: LineGlyphs(top: "↑", bottom: "↓"), widthTemplate: "888 KB/s"))
     }
 
     @Test func sensorsShowTemperatureOverPower() {
         let sensors = SensorSample(cpuTemperature: Temperature(celsius: 43.6), gpuTemperature: nil, systemPower: Power(watts: 3.61), fans: [])
 
-        guard case .lines(let top, let bottom, _) = content(.sensors, sensors: sensors) else {
+        guard case .lines(let top, let bottom, _, _) = content(.sensors, sensors: sensors) else {
             Issue.record("Expected lines")
             return
         }
@@ -60,7 +60,7 @@ struct MenuBarWidgetContentTests {
     @Test func sensorsUseChosenTemperatureUnit() {
         let sensors = SensorSample(cpuTemperature: Temperature(celsius: 50), gpuTemperature: nil, systemPower: nil, fans: [])
 
-        guard case .lines(let top, _, _) = content(.sensors, sensors: sensors, temperatureUnit: .fahrenheit) else {
+        guard case .lines(let top, _, _, _) = content(.sensors, sensors: sensors, temperatureUnit: .fahrenheit) else {
             Issue.record("Expected lines")
             return
         }
@@ -69,7 +69,7 @@ struct MenuBarWidgetContentTests {
     }
 
     @Test func missingReadingsShowDashes() {
-        guard case .lines(let top, let bottom, _) = content(.battery) else {
+        guard case .lines(let top, let bottom, _, _) = content(.battery) else {
             Issue.record("Expected lines")
             return
         }
@@ -81,7 +81,7 @@ struct MenuBarWidgetContentTests {
     @Test func batteryShowsTimeRemainingOverCharge() {
         let battery = BatterySample(charge: Percent(0.44), state: .discharging(timeRemaining: .seconds(142 * 60)))
 
-        guard case .lines(let top, let bottom, _) = content(.battery, battery: battery) else {
+        guard case .lines(let top, let bottom, _, _) = content(.battery, battery: battery) else {
             Issue.record("Expected lines")
             return
         }
