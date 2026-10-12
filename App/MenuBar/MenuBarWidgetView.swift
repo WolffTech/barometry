@@ -33,8 +33,8 @@ struct MenuBarWidgetView: View {
                 BarGraph(values: values)
             case .gauge(let fraction):
                 FillGauge(fraction: fraction)
-            case .lines(let top, let bottom, let widthTemplate):
-                TwoLineText(top: top, bottom: bottom, widthTemplate: widthTemplate)
+            case .lines(let top, let bottom, let glyphs, let widthTemplate):
+                TwoLineText(top: top, bottom: bottom, glyphs: glyphs, widthTemplate: widthTemplate)
             }
         }
     }
@@ -107,16 +107,25 @@ private struct FillGauge: View {
 private struct TwoLineText: View {
     let top: String
     let bottom: String
+    let glyphs: LineGlyphs?
     let widthTemplate: String
 
     var body: some View {
-        // The hidden template sets a minimum width; longer values still widen the item.
-        ZStack(alignment: .trailing) {
-            Text(widthTemplate)
-                .hidden()
-            VStack(alignment: .trailing, spacing: -2) {
-                Text(top)
-                Text(bottom)
+        HStack(spacing: 3) {
+            if let glyphs {
+                VStack(spacing: -2) {
+                    Text(glyphs.top)
+                    Text(glyphs.bottom)
+                }
+            }
+            // The hidden template sets a minimum width; longer values still widen the item.
+            ZStack(alignment: .trailing) {
+                Text(widthTemplate)
+                    .hidden()
+                VStack(alignment: .trailing, spacing: -2) {
+                    Text(top)
+                    Text(bottom)
+                }
             }
         }
         .font(.system(size: 9.5, weight: .medium).monospacedDigit())

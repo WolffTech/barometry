@@ -6,9 +6,10 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
     case graph([Double])
     /// A fill level in 0...1.
     case gauge(Double)
-    /// Two right-aligned lines. `widthTemplate` is the widest expected text, used to reserve
-    /// width so the item doesn't shift as values change.
-    case lines(top: String, bottom: String, widthTemplate: String)
+    /// Two right-aligned lines, optionally led by fixed glyphs such as arrows. Glyphs sit in their
+    /// own column beside the label so they stay put as the values change width. `widthTemplate`
+    /// is the widest expected value text, used to reserve width so the item doesn't shift.
+    case lines(top: String, bottom: String, glyphs: LineGlyphs?, widthTemplate: String)
 
     public static let graphBarCount = 20
     static let missing = "—"
@@ -33,20 +34,23 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
             return .gauge(memory?.usage.fraction ?? 0)
         case .network:
             return .lines(
-                top: "↑ " + (network?.upload.formatted(locale: locale) ?? missing),
-                bottom: "↓ " + (network?.download.formatted(locale: locale) ?? missing),
-                widthTemplate: "↑ 888 KB/s"
+                top: network?.upload.formatted(locale: locale) ?? missing,
+                bottom: network?.download.formatted(locale: locale) ?? missing,
+                glyphs: LineGlyphs(top: "↑", bottom: "↓"),
+                widthTemplate: "888 KB/s"
             )
         case .sensors:
             return .lines(
                 top: sensors?.cpuTemperature?.formatted(in: temperatureUnit) ?? "\(missing)°",
                 bottom: sensors?.systemPower?.formatted(locale: locale) ?? "\(missing) W",
+                glyphs: nil,
                 widthTemplate: "88.8 W"
             )
         case .battery:
             return .lines(
                 top: battery.map { batteryStatus($0.state, locale: locale) } ?? missing,
                 bottom: battery?.charge.formatted(locale: locale) ?? missing,
+                glyphs: nil,
                 widthTemplate: "⚡︎8:88"
             )
         }
@@ -68,6 +72,11 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
             return "AC"
         }
     }
+}
+
+public struct LineGlyphs: Equatable, Sendable {
+    public let top: String
+    public let bottom: String
 }
 
 extension SystemMonitor {
