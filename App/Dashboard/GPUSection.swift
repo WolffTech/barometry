@@ -6,33 +6,45 @@ struct GPUSection: View {
     let history: History<Percent>
     let temperature: Temperature?
     let frequency: Frequency?
-    let maximumFrequency: Frequency?
-    let totalMemory: ByteCount?
-    @Binding var isExpanded: Bool
 
     @Environment(\.temperatureUnit) private var temperatureUnit
 
     var body: some View {
-        GlanceRow(
-            title: "GPU",
-            summary: summary(frequency?.formatted(), temperature?.formatted(in: temperatureUnit)),
-            symbol: "cube.transparent",
-            tint: .indigo,
-            isExpanded: $isExpanded
-        ) {
-            Sparkline(history, color: .indigo) { $0.fraction }
+        GlanceRow(section: .gpu, summary: summary(frequency?.formatted(), temperature?.formatted(in: temperatureUnit))) {
+            Sparkline(history, color: DashboardSection.gpu.tint) { $0.fraction }
         } value: {
             Text(gpu.utilization.formatted())
-        } detail: {
-            VStack(spacing: 8) {
-                MeterRow(label: "Clock", value: clock, fraction: fraction(frequency?.hertz, of: maximumFrequency?.hertz))
-                if let memory = gpu.memoryInUse {
-                    MeterRow(
-                        label: "Memory",
-                        value: totalMemory.map { "\(memory.formattedCompact()) of \($0.formatted(.memory))" } ?? memory.formattedCompact(),
-                        fraction: fraction(Double(memory.bytes), of: totalMemory.map { Double($0.bytes) })
-                    )
-                }
+        }
+    }
+}
+
+struct GPUDetails: View {
+    let gpu: GPUSample
+    let history: History<Percent>
+    let temperature: Temperature?
+    let frequency: Frequency?
+    let maximumFrequency: Frequency?
+    let totalMemory: ByteCount?
+
+    @Environment(\.temperatureUnit) private var temperatureUnit
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            DetailsHeader(
+                section: .gpu,
+                value: gpu.utilization.formatted(),
+                summary: summary(frequency?.formatted() ?? "Idle", temperature?.formatted(in: temperatureUnit))
+            )
+            Sparkline(history, color: DashboardSection.gpu.tint, window: history.capacity, showsGrid: true) { $0.fraction }
+                .frame(height: 64)
+                .accessibilityHidden(true)
+            MeterRow(label: "Clock", value: clock, fraction: fraction(frequency?.hertz, of: maximumFrequency?.hertz))
+            if let memory = gpu.memoryInUse {
+                MeterRow(
+                    label: "Memory",
+                    value: totalMemory.map { "\(memory.formattedCompact()) of \($0.formatted(.memory))" } ?? memory.formattedCompact(),
+                    fraction: fraction(Double(memory.bytes), of: totalMemory.map { Double($0.bytes) })
+                )
             }
         }
     }

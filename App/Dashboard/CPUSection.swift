@@ -1,4 +1,5 @@
 import BarometryKit
+import Charts
 import SwiftUI
 
 struct CPUSection: View {
@@ -6,35 +7,41 @@ struct CPUSection: View {
     let history: History<CPULoad>
     let frequencies: FrequencySample?
     let temperature: Temperature?
-    @Binding var isExpanded: Bool
 
     @Environment(\.temperatureUnit) private var temperatureUnit
 
     var body: some View {
-        GlanceRow(
-            title: "CPU",
-            summary: summary(frequencies?.cpu?.formatted(), temperature?.formatted(in: temperatureUnit)),
-            symbol: "cpu",
-            tint: .blue,
-            isExpanded: $isExpanded
-        ) {
-            Sparkline(history, color: .blue) { $0.total.fraction }
+        GlanceRow(section: .cpu, summary: summary(frequencies?.cpu?.formatted(), temperature?.formatted(in: temperatureUnit))) {
+            Sparkline(history, color: DashboardSection.cpu.tint) { $0.total.fraction }
         } value: {
             Text(cpu?.total.total.formatted() ?? missingValue)
-        } detail: {
-            if let cpu {
-                detail(cpu)
-            }
         }
     }
+}
 
-    private func detail(_ cpu: CPUSample) -> some View {
+struct CPUDetails: View {
+    let cpu: CPUSample
+    let history: History<CPULoad>
+    let frequencies: FrequencySample?
+    let temperature: Temperature?
+
+    @Environment(\.temperatureUnit) private var temperatureUnit
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            CoreBars(cores: cpu.cores)
+            DetailsHeader(
+                section: .cpu,
+                value: cpu.total.total.formatted(),
+                summary: summary(frequencies?.cpu?.formatted(), temperature?.formatted(in: temperatureUnit))
+            )
+            LoadChart(history: history)
+                .frame(height: 64)
             HStack(spacing: 16) {
                 LegendRow(color: DashboardPalette.primary, label: "User", value: cpu.total.user.formatted())
                 LegendRow(color: DashboardPalette.secondary, label: "System", value: cpu.total.system.formatted())
             }
+            DetailsHeading("Cores")
+            CoreGrid(cores: cpu.cores)
             ForEach([CoreKind.efficiency, .performance], id: \.self) { kind in
                 if let average = cpu.averageLoad(of: kind) {
                     let count = cpu.cores.count { $0.kind == kind }
@@ -52,44 +59,64 @@ struct CPUSection: View {
     }
 }
 
-/// One bar per core, user load stacked under system load, with a gap between core kinds.
-private struct CoreBars: View {
-    let cores: [CoreLoad]
-
-    private static let height: CGFloat = 30
+/// Total load over the whole history, user stacked under system.
+private struct LoadChart: View {
+    let history: History<CPULoad>
 
     var body: some View {
-        HStack(alignment: .bottom, spacing: 2) {
-            ForEach(Array(cores.enumerated()), id: \.element.id) { index, core in
-                if index > 0, cores[index - 1].kind != core.kind {
-                    Spacer()
-                        .frame(width: 4)
-                }
-                bar(core)
+        Chart {
+            ForEach(history.slotted, id: \.slot) { slot, load in
+                BarMark(x: .value("Time", slot), y: .value("Load", load.user.fraction), width: .fixed(1.5))
+                    .foregroundStyle(by: .value("Kind", "User"))
+                BarMark(x: .value("Time", slot), y: .value("Load", load.system.fraction), width: .fixed(1.5))
+                    .foregroundStyle(by: .value("Kind", "System"))
             }
         }
-        .frame(height: Self.height)
+        .chartForegroundStyleScale(["User": DashboardPalette.primary, "System": DashboardPalette.secondary])
+        .chartXScale(domain: history.slotDomain)
+        .chartYScale(domain: 0...1)
+        .chartXAxis(.hidden)
+        .chartYAxis {
+            AxisMarks(values: [0.25, 0.5, 0.75]) {
+                AxisGridLine()
+            }
+        }
+        .chartLegend(.hidden)
+        .accessibilityHidden(true)
+    }
+}
+
+/// One cell per core, shaded by load, with efficiency cores first.
+private struct CoreGrid: View {
+    let cores: [CoreLoad]
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 4), count: 6)
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 4) {
+            ForEach(Array(cores.enumerated()), id: \.element.id) { index, core in
+                cell(core, number: cores[..<index].count { $0.kind == core.kind } + 1)
+            }
+        }
     }
 
-    private func bar(_ core: CoreLoad) -> some View {
-        RoundedRectangle(cornerRadius: 2)
-            .fill(DashboardPalette.track)
-            .overlay(alignment: .bottom) {
-                VStack(spacing: 0) {
-                    Rectangle()
-                        .fill(DashboardPalette.secondary)
-                        .frame(height: Self.height * core.load.system.fraction)
-                    Rectangle()
-                        .fill(DashboardPalette.primary)
-                        .frame(height: Self.height * core.load.user.fraction)
-                }
-                .clipShape(.rect(cornerRadius: 2))
-            }
-            .frame(maxWidth: .infinity)
-            .help("Core \(core.id) (\(core.kind.name)): \(core.load.total.formatted())")
-            .accessibilityElement()
-            .accessibilityLabel("Core \(core.id), \(core.kind.name)")
-            .accessibilityValue(core.load.total.formatted())
+    private func cell(_ core: CoreLoad, number: Int) -> some View {
+        let load = core.load.total
+        return VStack(spacing: 0) {
+            Text("\(core.kind.abbreviation)\(number)")
+                .font(.system(size: 9))
+                .opacity(0.75)
+            Text(load.formatted())
+                .font(.caption2)
+                .monospacedDigit()
+        }
+        .foregroundStyle(load.fraction > 0.4 ? AnyShapeStyle(.white) : AnyShapeStyle(.primary))
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 3)
+        .background(DashboardSection.cpu.tint.opacity(0.15 + load.fraction * 0.85), in: .rect(cornerRadius: 6))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Core \(core.id), \(core.kind.name)")
+        .accessibilityValue(load.formatted())
     }
 }
 
@@ -98,6 +125,13 @@ private extension CoreKind {
         switch self {
         case .efficiency: "Efficiency"
         case .performance: "Performance"
+        }
+    }
+
+    var abbreviation: String {
+        switch self {
+        case .efficiency: "E"
+        case .performance: "P"
         }
     }
 }

@@ -23,87 +23,57 @@ enum DashboardPalette {
     static let track = Color.secondary.opacity(0.22)
 }
 
-/// One subsystem at a glance: an icon, a title and summary, a trend, and a headline value.
-/// Expandable rows reveal their detail below when clicked.
-struct GlanceRow<Trend: View, Value: View, Detail: View>: View {
-    private let title: String
-    private let summary: String?
-    private let symbol: String
-    private let tint: Color
-    /// Nil for rows without detail.
-    private let isExpanded: Binding<Bool>?
-    private let trend: Trend
-    private let value: Value
-    private let detail: Detail
-
-    @State private var isHovered = false
-
-    init(
-        title: String,
-        summary: String?,
-        symbol: String,
-        tint: Color,
-        isExpanded: Binding<Bool>,
-        @ViewBuilder trend: () -> Trend,
-        @ViewBuilder value: () -> Value,
-        @ViewBuilder detail: () -> Detail
-    ) {
-        self.title = title
-        self.summary = summary
-        self.symbol = symbol
-        self.tint = tint
-        self.isExpanded = isExpanded
-        self.trend = trend()
-        self.value = value()
-        self.detail = detail()
+extension DashboardSection {
+    var symbol: String {
+        switch self {
+        case .cpu: "cpu"
+        case .gpu: "cube.transparent"
+        case .memory: "memorychip"
+        case .network: "arrow.up.arrow.down"
+        case .power: "bolt.fill"
+        case .disk: "internaldrive"
+        }
     }
+
+    var tint: Color {
+        switch self {
+        case .cpu: .blue
+        case .gpu: .indigo
+        case .memory: .pink
+        case .network: .cyan
+        case .power: .orange
+        case .disk: .gray
+        }
+    }
+}
+
+/// White symbol on a tinted rounded square.
+struct IconTile: View {
+    let section: DashboardSection
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if let isExpanded {
-                Button {
-                    withAnimation(.snappy(duration: 0.25)) {
-                        isExpanded.wrappedValue.toggle()
-                    }
-                } label: {
-                    header
-                        .contentShape(.rect)
-                }
-                .buttonStyle(.plain)
-                .accessibilityValue(isExpanded.wrappedValue ? "Expanded" : "Collapsed")
-                if isExpanded.wrappedValue {
-                    detail
-                        // Lines up with the title, past the icon.
-                        .padding(.leading, 38)
-                        .padding(.top, 8)
-                        .padding(.bottom, 2)
-                        .transition(.opacity)
-                }
-            } else {
-                header
-            }
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background {
-            if isExpanded?.wrappedValue == true || (isExpanded != nil && isHovered) {
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(.fill.quaternary)
-            }
-        }
-        .onHover { isHovered = $0 }
+        Image(systemName: section.symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 28, height: 28)
+            .background(section.tint.gradient, in: .rect(cornerRadius: 8))
+            .accessibilityHidden(true)
     }
+}
 
-    private var header: some View {
+/// One subsystem at a glance: an icon, a title and summary, a trend, and a headline value.
+struct GlanceRow<Trend: View, Value: View>: View {
+    let section: DashboardSection
+    var title: String?
+    let summary: String?
+    @ViewBuilder let trend: Trend
+    @ViewBuilder let value: Value
+
+    var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: symbol)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 28, height: 28)
-                .background(tint.gradient, in: .rect(cornerRadius: 8))
-                .accessibilityHidden(true)
+            IconTile(section: section)
             VStack(alignment: .leading, spacing: 1) {
-                Text(title)
+                Text(title ?? section.name)
                     .fontWeight(.semibold)
                 if let summary {
                     Text(summary)
@@ -122,45 +92,83 @@ struct GlanceRow<Trend: View, Value: View, Detail: View>: View {
                 .fixedSize()
                 .frame(minWidth: 44, alignment: .trailing)
         }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .showsDetails(section, cornerRadius: 12)
     }
 }
 
-extension GlanceRow where Detail == EmptyView {
-    init(
-        title: String,
-        summary: String?,
-        symbol: String,
-        tint: Color,
-        @ViewBuilder trend: () -> Trend,
-        @ViewBuilder value: () -> Value
-    ) {
+/// Top of a details panel: the section's icon, a large value, and a summary below it.
+struct DetailsHeader: View {
+    let section: DashboardSection
+    let value: String
+    let summary: String?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            IconTile(section: section)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.title.weight(.semibold))
+                    .monospacedDigit()
+                if let summary {
+                    Text(summary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(section.name)
+    }
+}
+
+/// Small uppercase heading for a group within a details panel.
+struct DetailsHeading: View {
+    let title: String
+
+    init(_ title: String) {
         self.title = title
-        self.summary = summary
-        self.symbol = symbol
-        self.tint = tint
-        isExpanded = nil
-        self.trend = trend()
-        self.value = value()
-        detail = EmptyView()
+    }
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, 6)
+            .accessibilityAddTraits(.isHeader)
     }
 }
 
 /// Filled line of recent values, newest on the right.
 struct Sparkline: View {
-    /// Only recent samples, so the trend stays legible at sparkline width.
-    private static let window = 30
+    /// Samples a row's sparkline shows: few enough that the trend stays legible at its width.
+    static let rowWindow = 30
 
     private let points: [(slot: Int, value: Double)]
+    private let window: Int
     private let valueDomain: ClosedRange<Double>
     private let color: Color
+    private let showsGrid: Bool
 
-    /// Values above `valueDomain` are clipped.
-    init<Element>(_ history: History<Element>, color: Color, in valueDomain: ClosedRange<Double> = 0...1, value: (Element) -> Double) {
-        let recent = history.suffix(Self.window)
-        let offset = Self.window - recent.count
+    /// Shows the last `window` samples. Values above `valueDomain` are clipped.
+    init<Element>(
+        _ history: History<Element>,
+        color: Color,
+        in valueDomain: ClosedRange<Double> = 0...1,
+        window: Int = rowWindow,
+        showsGrid: Bool = false,
+        value: (Element) -> Double
+    ) {
+        let recent = history.suffix(window)
+        let offset = window - recent.count
         points = recent.enumerated().map { (offset + $0.offset, value($0.element)) }
+        self.window = window
         self.valueDomain = valueDomain
         self.color = color
+        self.showsGrid = showsGrid
     }
 
     var body: some View {
@@ -171,12 +179,25 @@ struct Sparkline: View {
                 .foregroundStyle(color)
                 .lineStyle(StrokeStyle(lineWidth: 1.5))
         }
-        .chartXScale(domain: -0.5...(Double(Self.window) - 0.5))
+        .chartXScale(domain: -0.5...(Double(window) - 0.5))
         .chartYScale(domain: valueDomain)
         .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
+        .chartYAxis {
+            if showsGrid {
+                AxisMarks(values: quarterLines) {
+                    AxisGridLine()
+                }
+            }
+        }
         .chartLegend(.hidden)
         .clipped()
+    }
+}
+
+extension Sparkline {
+    /// Grid lines at a quarter, half, and three quarters of the value domain.
+    private var quarterLines: [Double] {
+        [0.25, 0.5, 0.75].map { valueDomain.lowerBound + (valueDomain.upperBound - valueDomain.lowerBound) * $0 }
     }
 }
 

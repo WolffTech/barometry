@@ -37,8 +37,9 @@ struct ClusterDashboard: View {
                 detail: monitor.frequencies?.cpu?.formatted(),
                 value: monitor.cpu?.total.total.formatted() ?? missingValue,
                 fraction: monitor.cpu?.total.total.fraction ?? 0,
-                tint: .blue
+                tint: DashboardSection.cpu.tint
             )
+            .showsDetails(.cpu, cornerRadius: 14)
         }
         if shows(.gpu), let gpu = monitor.gpu {
             DialTile(
@@ -46,8 +47,9 @@ struct ClusterDashboard: View {
                 detail: monitor.frequencies?.gpu?.formatted(),
                 value: gpu.utilization.formatted(),
                 fraction: gpu.utilization.fraction,
-                tint: .indigo
+                tint: DashboardSection.gpu.tint
             )
+            .showsDetails(.gpu, cornerRadius: 14)
         }
         if shows(.memory), let memory = monitor.memory {
             DialTile(
@@ -55,8 +57,9 @@ struct ClusterDashboard: View {
                 detail: memory.pressure.level.name,
                 value: memory.used.formattedCompact(),
                 fraction: memory.usage.fraction,
-                tint: .pink
+                tint: DashboardSection.memory.tint
             )
+            .showsDetails(.memory, cornerRadius: 14)
         }
         if shows(.power), let power = monitor.sensors?.systemPower {
             // Macs draw anywhere from a few watts to well over 100, so the dial spans the
@@ -67,8 +70,9 @@ struct ClusterDashboard: View {
                 detail: monitor.sensors?.cpuTemperature?.formatted(in: temperatureUnit),
                 value: power.formatted(),
                 fraction: power.watts / peak,
-                tint: .orange
+                tint: DashboardSection.power.tint
             )
+            .showsDetails(.power, cornerRadius: 14)
         }
     }
 
@@ -90,6 +94,7 @@ struct ClusterDashboard: View {
                     .accessibilityHidden(true)
             }
         }
+        .showsDetails(.network, cornerRadius: 14)
     }
 
     private func rate(_ rate: ByteRate?, color: Color, label: String) -> some View {
@@ -109,10 +114,12 @@ struct ClusterDashboard: View {
         if shows(.power), let battery = monitor.battery {
             RingTile(value: battery.charge.formatted(), detail: battery.stateDescription, fraction: battery.charge.fraction, tint: .green)
                 .accessibilityLabel("Battery")
+                .showsDetails(.power, cornerRadius: 14)
         }
         if shows(.disk), let disk = monitor.disk {
             RingTile(value: "\(Self.shortSize(disk.available)) free", detail: disk.name, fraction: disk.usage.fraction, tint: .blue)
                 .accessibilityLabel(disk.name)
+                .showsDetails(.disk, cornerRadius: 14)
         }
     }
 }

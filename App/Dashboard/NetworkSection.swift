@@ -6,27 +6,16 @@ struct NetworkSection: View {
     let history: History<NetworkSample>
     /// Display names, such as "Wi-Fi", keyed by BSD name.
     let interfaceNames: [String: String]
-    @Binding var isExpanded: Bool
-
-    @State private var hoverSlot: Int?
 
     var body: some View {
-        GlanceRow(
-            title: "Network",
-            summary: network.flatMap { summary(interfaceNames[$0.interface], $0.interface) },
-            symbol: "arrow.up.arrow.down",
-            tint: .cyan,
-            isExpanded: $isExpanded
-        ) {
-            Sparkline(history, color: .cyan, in: 0...peak) { $0.upload.bytesPerSecond + $0.download.bytesPerSecond }
+        GlanceRow(section: .network, summary: network.flatMap { summary(interfaceNames[$0.interface], $0.interface) }) {
+            Sparkline(history, color: DashboardSection.network.tint, in: 0...peak) { $0.upload.bytesPerSecond + $0.download.bytesPerSecond }
         } value: {
             VStack(alignment: .trailing, spacing: 0) {
                 Text("↑ \(network?.upload.formatted() ?? missingValue)")
                 Text("↓ \(network?.download.formatted() ?? missingValue)")
             }
             .font(.caption.weight(.semibold))
-        } detail: {
-            detail
         }
     }
 
@@ -34,15 +23,36 @@ struct NetworkSection: View {
     private var peak: Double {
         max(history.map { $0.upload.bytesPerSecond + $0.download.bytesPerSecond }.max() ?? 0, 1_000)
     }
+}
 
-    private var detail: some View {
-        // While hovering, the legend shows the hovered sample instead of the latest one.
+struct NetworkDetails: View {
+    let network: NetworkSample?
+    let history: History<NetworkSample>
+    /// Display names, such as "Wi-Fi", keyed by BSD name.
+    let interfaceNames: [String: String]
+
+    @State private var hoverSlot: Int?
+
+    var body: some View {
+        // While hovering the chart, the legend shows the hovered sample instead of the latest one.
         let shown = hoverSlot.flatMap(history.element(inSlot:)) ?? network
-        return VStack(spacing: 6) {
+        VStack(alignment: .leading, spacing: 6) {
+            DetailsHeader(
+                section: .network,
+                value: "↓ \(network?.download.formatted() ?? missingValue)",
+                summary: summary(
+                    network.map { "↑ \($0.upload.formatted())" },
+                    network.map { interface in interfaceNames[interface.interface].map { "\($0) (\(interface.interface))" } ?? interface.interface }
+                )
+            )
             NetworkChart(history: history, hoverSlot: $hoverSlot)
-                .frame(height: 40)
+                .frame(height: 70)
+                .padding(.vertical, 2)
             LegendRow(color: DashboardPalette.secondary, label: "Upload", value: shown?.upload.formatted() ?? missingValue)
             LegendRow(color: DashboardPalette.primary, label: "Download", value: shown?.download.formatted() ?? missingValue)
+            if let peakUpload = history.map(\.upload).max(), let peakDownload = history.map(\.download).max() {
+                DetailRow(label: "Peak", value: "↓ \(peakDownload.formatted()) · ↑ \(peakUpload.formatted())")
+            }
         }
     }
 }

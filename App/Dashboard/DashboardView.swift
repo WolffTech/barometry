@@ -14,26 +14,8 @@ struct DashboardView: View {
     let machine: Machine
     /// Display names, such as "Wi-Fi", keyed by BSD name.
     let interfaceNames: [String: String]
+    let focus: DetailFocus
     let actions: Actions
-
-    /// At most one row is expanded at a time.
-    @State private var expanded: DashboardSection?
-
-    init(
-        monitor: SystemMonitor,
-        preferences: Preferences,
-        machine: Machine,
-        interfaceNames: [String: String],
-        expanded: DashboardSection?,
-        actions: Actions
-    ) {
-        self.monitor = monitor
-        self.preferences = preferences
-        self.machine = machine
-        self.interfaceNames = interfaceNames
-        self.actions = actions
-        _expanded = State(initialValue: expanded)
-    }
 
     var body: some View {
         // Scrolls only when the panel is capped to the screen height.
@@ -47,18 +29,11 @@ struct DashboardView: View {
         .frame(width: 320)
         .background(.regularMaterial, in: .rect(cornerRadius: 16))
         .environment(\.temperatureUnit, preferences.temperatureUnit)
+        .environment(focus)
     }
 
     private func shows(_ section: DashboardSection) -> Bool {
         !preferences.hiddenDashboardSections.contains(section)
-    }
-
-    private func isExpanded(_ section: DashboardSection) -> Binding<Bool> {
-        Binding {
-            expanded == section
-        } set: { isExpanded in
-            expanded = isExpanded ? section : nil
-        }
     }
 
     private var content: some View {
@@ -106,8 +81,7 @@ struct DashboardView: View {
                 cpu: monitor.cpu,
                 history: monitor.cpuHistory,
                 frequencies: monitor.frequencies,
-                temperature: monitor.sensors?.cpuTemperature,
-                isExpanded: isExpanded(.cpu)
+                temperature: monitor.sensors?.cpuTemperature
             )
         }
         if shows(.gpu), let gpu = monitor.gpu {
@@ -115,29 +89,24 @@ struct DashboardView: View {
                 gpu: gpu,
                 history: monitor.gpuHistory,
                 temperature: monitor.sensors?.gpuTemperature,
-                frequency: monitor.frequencies?.gpu,
-                maximumFrequency: monitor.frequencies?.gpuMaximum,
-                totalMemory: monitor.memory?.total,
-                isExpanded: isExpanded(.gpu)
+                frequency: monitor.frequencies?.gpu
             )
         }
         if shows(.memory), let memory = monitor.memory {
-            MemorySection(memory: memory, history: monitor.memoryHistory, isExpanded: isExpanded(.memory))
+            MemorySection(memory: memory, history: monitor.memoryHistory)
         }
         if shows(.network) {
             NetworkSection(
                 network: monitor.network,
                 history: monitor.networkHistory,
-                interfaceNames: interfaceNames,
-                isExpanded: isExpanded(.network)
+                interfaceNames: interfaceNames
             )
         }
         if shows(.power), monitor.sensors != nil || monitor.battery != nil {
             PowerSection(
                 sensors: monitor.sensors,
                 battery: monitor.battery,
-                history: monitor.powerHistory,
-                isExpanded: isExpanded(.power)
+                history: monitor.powerHistory
             )
         }
         if shows(.disk), let disk = monitor.disk {
