@@ -23,6 +23,7 @@ struct MemorySection: View {
 struct MemoryDetails: View {
     let memory: MemorySample
     let history: History<Percent>
+    let processes: TopProcesses?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -46,6 +47,17 @@ struct MemoryDetails: View {
             LegendRow(color: DashboardPalette.tertiary, label: "Compressed", value: memory.compressed.formatted(.memory))
             DetailRow(label: "Cached files", value: memory.cached.formatted(.memory))
             DetailRow(label: "Pressure", value: "\(memory.pressure.percent.formatted()) · \(memory.pressure.level.name)")
+            if let swap = memory.swapUsed {
+                DetailRow(label: "Swap used", value: swap.bytes == 0 ? "None" : swap.formatted(.memory))
+            }
+            ProcessList(
+                title: "Top processes",
+                processes: processes?.byMemory,
+                tint: DashboardSection.memory.tint,
+                measure: { Double($0.memory.bytes) },
+                value: { $0.memory.formatted(.memory) }
+            )
+            .padding(.top, 4)
         }
     }
 

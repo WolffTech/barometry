@@ -11,6 +11,14 @@ struct DetailsView: View {
 
     static let width: CGFloat = 300
 
+    /// Sections whose details list top processes, which the monitor reads only while they're shown.
+    static func listsProcesses(_ section: DashboardSection) -> Bool {
+        switch section {
+        case .cpu, .gpu, .memory, .power: true
+        case .network, .disk: false
+        }
+    }
+
     let monitor: SystemMonitor
     let preferences: Preferences
     /// Display names, such as "Wi-Fi", keyed by BSD name.
@@ -47,7 +55,8 @@ struct DetailsView: View {
                     cpu: cpu,
                     history: monitor.cpuHistory,
                     frequencies: monitor.frequencies,
-                    temperature: monitor.sensors?.cpuTemperature
+                    temperature: monitor.sensors?.cpuTemperature,
+                    processes: monitor.processes
                 )
             }
         case .gpu:
@@ -58,20 +67,31 @@ struct DetailsView: View {
                     temperature: monitor.sensors?.gpuTemperature,
                     frequency: monitor.frequencies?.gpu,
                     maximumFrequency: monitor.frequencies?.gpuMaximum,
-                    totalMemory: monitor.memory?.total
+                    totalMemory: monitor.memory?.total,
+                    processes: monitor.processes
                 )
             }
         case .memory:
             if let memory = monitor.memory {
-                MemoryDetails(memory: memory, history: monitor.memoryHistory)
+                MemoryDetails(memory: memory, history: monitor.memoryHistory, processes: monitor.processes)
             }
         case .network:
             NetworkDetails(network: monitor.network, history: monitor.networkHistory, interfaceNames: interfaceNames)
         case .power:
-            PowerDetails(sensors: monitor.sensors, battery: monitor.battery, history: monitor.powerHistory)
+            PowerDetails(
+                sensors: monitor.sensors,
+                battery: monitor.battery,
+                history: monitor.powerHistory,
+                processes: monitor.processes
+            )
         case .disk:
             if let disk = monitor.disk {
-                DiskDetails(disk: disk)
+                DiskDetails(
+                    disk: disk,
+                    activity: monitor.diskActivity,
+                    history: monitor.diskActivityHistory,
+                    otherVolumes: monitor.otherVolumes
+                )
             }
         }
     }

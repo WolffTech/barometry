@@ -8,11 +8,11 @@ struct NetworkSampler {
 
     /// Returns nil on the first call, after the interface changes, and while it's offline.
     mutating func sample(interface preferred: String?) -> NetworkSample? {
-        guard let interface = preferred ?? primaryInterface(), let counters = Self.counters(for: interface) else {
+        guard let interface = preferred ?? primaryInterface(), let reading = Self.read(interface) else {
             tracker.reset()
             return nil
         }
-        return tracker.update(interface: interface, counters: counters, at: .now)
+        return tracker.update(interface: interface, counters: reading.counters, address: reading.address, at: .now)
     }
 
     private func primaryInterface() -> String? {
@@ -25,21 +25,32 @@ struct NetworkSampler {
         return nil
     }
 
-    private static func counters(for interface: String) -> NetworkCounters? {
+    /// Nil if the interface has no counters, such as when it's gone.
+    private static func read(_ interface: String) -> (counters: NetworkCounters, address: String?)? {
         var addresses: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&addresses) == 0, let first = addresses else { return nil }
         defer { freeifaddrs(addresses) }
 
-        // The AF_LINK entry for an interface carries its if_data counters.
+        var counters: NetworkCounters?
+        var ipv4: String?
         for entry in sequence(first: first, next: { $0.pointee.ifa_next }) {
             let address = entry.pointee
-            guard let socketAddress = address.ifa_addr,
-                  socketAddress.pointee.sa_family == UInt8(AF_LINK),
-                  String(cString: address.ifa_name) == interface,
-                  let data = address.ifa_data?.assumingMemoryBound(to: if_data.self).pointee
-            else { continue }
-            return NetworkCounters(received: data.ifi_ibytes, sent: data.ifi_obytes)
+            guard let socketAddress = address.ifa_addr, String(cString: address.ifa_name) == interface else { continue }
+            switch Int32(socketAddress.pointee.sa_family) {
+            case AF_LINK:
+                // The AF_LINK entry for an interface carries its if_data counters.
+                if let data = address.ifa_data?.assumingMemoryBound(to: if_data.self).pointee {
+                    counters = NetworkCounters(received: data.ifi_ibytes, sent: data.ifi_obytes)
+                }
+            case AF_INET where ipv4 == nil:
+                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                if getnameinfo(socketAddress, socklen_t(socketAddress.pointee.sa_len), &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST) == 0 {
+                    ipv4 = String(decoding: host.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) }, as: UTF8.self)
+                }
+            default:
+                break
+            }
         }
-        return nil
+        return counters.map { ($0, ipv4) }
     }
 }

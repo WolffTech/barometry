@@ -9,6 +9,14 @@ enum Sysctl {
         return value
     }
 
+    /// Reads a sysctl holding a C struct, such as `xsw_usage`, or nil if it doesn't exist or has a different size.
+    static func value<Value: BitwiseCopyable>(_ name: String, empty: Value) -> Value? {
+        var value = empty
+        var size = MemoryLayout<Value>.size
+        guard sysctlbyname(name, &value, &size, nil, 0) == 0, size == MemoryLayout<Value>.size else { return nil }
+        return value
+    }
+
     /// Reads a string sysctl, or nil if it doesn't exist.
     static func string(_ name: String) -> String? {
         var size = 0

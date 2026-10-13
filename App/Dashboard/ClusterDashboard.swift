@@ -89,7 +89,7 @@ struct ClusterDashboard: View {
                     rate(network?.download, color: DashboardPalette.primary, label: "Download")
                 }
                 .fixedSize()
-                NetworkChart(history: monitor.networkHistory)
+                RateChart(network: monitor.networkHistory)
                     .frame(height: 40)
                     .accessibilityHidden(true)
             }

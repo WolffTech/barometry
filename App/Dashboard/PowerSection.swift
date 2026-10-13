@@ -28,6 +28,7 @@ struct PowerDetails: View {
     let sensors: SensorSample?
     let battery: BatterySample?
     let history: History<Power>
+    let processes: TopProcesses?
 
     @Environment(\.temperatureUnit) private var temperatureUnit
 
@@ -45,6 +46,10 @@ struct PowerDetails: View {
             if let battery {
                 MeterRow(label: "Battery", value: battery.chargeSummary, fraction: battery.charge.fraction, color: .green)
                     .padding(.bottom, 2)
+                if let health = battery.health {
+                    DetailRow(label: "Maximum capacity", value: health.maximumCapacity.formatted())
+                    DetailRow(label: "Cycle count", value: health.cycleCount.formatted())
+                }
             }
             if let temperature = sensors?.cpuTemperature {
                 DetailRow(label: "CPU temperature", value: temperature.formatted(in: temperatureUnit))
@@ -58,6 +63,14 @@ struct PowerDetails: View {
                     value: fan.isSpinning ? "\(fan.rpm.formatted(.number.precision(.fractionLength(0)))) RPM" : "Off"
                 )
             }
+            ProcessList(
+                title: "Top energy use",
+                processes: processes?.byPower,
+                tint: DashboardSection.power.tint,
+                measure: \.power.watts,
+                value: \.power.processFormatted
+            )
+            .padding(.top, 4)
         }
     }
 }

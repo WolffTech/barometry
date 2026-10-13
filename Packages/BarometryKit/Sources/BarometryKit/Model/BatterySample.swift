@@ -13,10 +13,13 @@ public struct BatterySample: Equatable, Sendable {
 
     public let charge: Percent
     public let state: State
+    /// Nil when it couldn't be read.
+    public internal(set) var health: BatteryHealth?
 
-    public init(charge: Percent, state: State) {
+    public init(charge: Percent, state: State, health: BatteryHealth? = nil) {
         self.charge = charge
         self.state = state
+        self.health = health
     }
 
     /// Parses an `IOPSGetPowerSourceDescription` dictionary.
@@ -50,5 +53,27 @@ public struct BatterySample: Equatable, Sendable {
             state = .notCharging
         }
         self.init(charge: charge, state: state)
+    }
+}
+
+public struct BatteryHealth: Equatable, Sendable {
+    public let cycleCount: Int
+    /// Full-charge capacity relative to when new, like "Maximum Capacity" in System Settings.
+    public let maximumCapacity: Percent
+
+    public init(cycleCount: Int, maximumCapacity: Percent) {
+        self.cycleCount = cycleCount
+        self.maximumCapacity = maximumCapacity
+    }
+
+    /// Parses `AppleSmartBattery` registry properties. Newer macOS versions drop the
+    /// top-level capacities and keep them only in `BatteryData`.
+    init?(registry properties: [String: Any]) {
+        let batteryData = properties["BatteryData"] as? [String: Any] ?? [:]
+        guard let cycleCount = properties["CycleCount"] as? Int,
+              let design = properties["DesignCapacity"] as? Int ?? batteryData["DesignCapacity"] as? Int,
+              let full = properties["AppleRawMaxCapacity"] as? Int ?? batteryData["NominalChargeCapacity"] as? Int
+        else { return nil }
+        self.init(cycleCount: cycleCount, maximumCapacity: Percent(Double(full), of: Double(design)))
     }
 }

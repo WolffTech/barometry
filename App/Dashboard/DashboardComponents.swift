@@ -286,19 +286,22 @@ struct SegmentedBar: View {
     }
 }
 
-/// Upload grows up from the center line and download grows down, on one shared scale.
-struct NetworkChart: View {
-    let history: History<NetworkSample>
+/// Two rates on one shared scale, such as upload and download: the upper grows up from the
+/// center line in the secondary color, and the lower grows down in the primary color.
+struct RateChart<Element>: View {
+    let history: History<Element>
+    let upper: (Element) -> ByteRate
+    let lower: (Element) -> ByteRate
     /// The slot under the pointer, marked with a rule. Without a binding, the chart doesn't track the pointer.
     var hoverSlot: Binding<Int?>?
 
     var body: some View {
-        let peak = max(history.map { max($0.upload.bytesPerSecond, $0.download.bytesPerSecond) }.max() ?? 0, 1_000)
+        let peak = max(history.map { max(upper($0).bytesPerSecond, lower($0).bytesPerSecond) }.max() ?? 0, 1_000)
         let chart = Chart {
             ForEach(history.slotted, id: \.slot) { slot, sample in
-                BarMark(x: .value("Time", slot), y: .value("Rate", sample.upload.bytesPerSecond), width: .fixed(1.5))
+                BarMark(x: .value("Time", slot), y: .value("Rate", upper(sample).bytesPerSecond), width: .fixed(1.5))
                     .foregroundStyle(DashboardPalette.secondary)
-                BarMark(x: .value("Time", slot), y: .value("Rate", -sample.download.bytesPerSecond), width: .fixed(1.5))
+                BarMark(x: .value("Time", slot), y: .value("Rate", -lower(sample).bytesPerSecond), width: .fixed(1.5))
                     .foregroundStyle(DashboardPalette.primary)
             }
             RuleMark(y: .value("Rate", 0))
@@ -319,6 +322,72 @@ struct NetworkChart: View {
         } else {
             chart
         }
+    }
+}
+
+extension RateChart where Element == NetworkSample {
+    init(network history: History<NetworkSample>, hoverSlot: Binding<Int?>? = nil) {
+        self.init(history: history, upper: \.upload, lower: \.download, hoverSlot: hoverSlot)
+    }
+}
+
+/// The busiest few processes by one measure, with bars relative to the busiest.
+/// Shows placeholder rows until the first usage arrives, so the details don't jump.
+struct ProcessList: View {
+    let title: String
+    let processes: [ProcessUsage]?
+    let tint: Color
+    let measure: (ProcessUsage) -> Double
+    let value: (ProcessUsage) -> String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            DetailsHeading(title)
+            if let processes {
+                let top = processes.map(measure).max() ?? 0
+                ForEach(processes) { process in
+                    row(name: process.name, fraction: top > 0 ? measure(process) / top : 0, value: value(process))
+                }
+                if processes.isEmpty {
+                    Text("No processes to show")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                ForEach(0..<4, id: \.self) { _ in
+                    row(name: "Process name", fraction: 0, value: "0.0%")
+                }
+                .redacted(reason: .placeholder)
+            }
+            Text("Your processes only")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func row(name: String, fraction: Double, value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ProgressBar(fraction: fraction, color: tint)
+                .frame(width: 60)
+            Text(value)
+                .monospacedDigit()
+                .frame(width: 64, alignment: .trailing)
+        }
+        .font(.callout)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(name)
+        .accessibilityValue(value)
+    }
+}
+
+extension Power {
+    /// Milliwatts below a watt, so idle processes don't all read "0.0 W".
+    var processFormatted: String {
+        watts < 0.995 ? "\((watts * 1000).formatted(.number.precision(.fractionLength(0)))) mW" : formatted()
     }
 }
 
@@ -402,3 +471,10 @@ func summary(_ parts: String?...) -> String? {
 
 /// Shown in place of a reading that isn't available.
 let missingValue = "—"
+
+extension ProcessList {
+    static func byCPU(_ processes: TopProcesses?, title: String = "Top processes", tint: Color) -> some View {
+        ProcessList(title: title, processes: processes?.byCPU, tint: tint, measure: \.cpu.cores) { $0.cpu.formatted() }
+            .padding(.top, 4)
+    }
+}

@@ -45,13 +45,16 @@ struct NetworkDetails: View {
                     network.map { interface in interfaceNames[interface.interface].map { "\($0) (\(interface.interface))" } ?? interface.interface }
                 )
             )
-            NetworkChart(history: history, hoverSlot: $hoverSlot)
+            RateChart(network: history, hoverSlot: $hoverSlot)
                 .frame(height: 70)
                 .padding(.vertical, 2)
             LegendRow(color: DashboardPalette.secondary, label: "Upload", value: shown?.upload.formatted() ?? missingValue)
             LegendRow(color: DashboardPalette.primary, label: "Download", value: shown?.download.formatted() ?? missingValue)
             if let peakUpload = history.map(\.upload).max(), let peakDownload = history.map(\.download).max() {
                 DetailRow(label: "Peak", value: "↓ \(peakDownload.formatted()) · ↑ \(peakUpload.formatted())")
+            }
+            if let address = network?.address {
+                DetailRow(label: "IP address", value: address)
             }
         }
     }

@@ -182,6 +182,7 @@ final class DashboardPanel: NSPanel {
         let height = min(layout.contentHeight.rounded(.up), visible.height - 2 * Self.screenMargin)
         // Slide up rather than run off the bottom of the screen.
         let minY = max(top - height, visible.minY + Self.screenMargin)
+        monitor.samplesProcesses = DetailsView.listsProcesses(target.section)
         detailsPanel.setFrame(NSRect(x: minX, y: minY, width: width, height: height), display: true)
         if detailsPanel.parent == nil {
             addChildWindow(detailsPanel, ordered: .above)
@@ -190,6 +191,7 @@ final class DashboardPanel: NSPanel {
     }
 
     private func hideDetails() {
+        monitor.samplesProcesses = false
         if detailsPanel.parent != nil {
             removeChildWindow(detailsPanel)
         }

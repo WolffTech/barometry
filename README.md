@@ -15,7 +15,7 @@ Barometry shows CPU, GPU, memory, network, sensor, and battery readings as compa
 - Menu bar modules for CPU, GPU, memory, network, sensors, and battery
 - One menu bar item per module, or a single combined item in the order you choose
 - A dashboard in two styles, an instrument cluster of dials or a list of rows with live trends, with sections you can hide
-- Details beside the dashboard: hover a section to see its history and breakdown, or click it to keep them open
+- Details beside the dashboard: hover a section to see its history, breakdown, and top processes, or click it to keep them open
 - Temperatures in °C or °F, and a choice of network interface
 - A refresh interval of 1, 2, or 5 seconds, with 1-second updates while the dashboard is open
 - Launch at login
