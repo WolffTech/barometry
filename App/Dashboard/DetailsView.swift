@@ -21,6 +21,7 @@ struct DetailsView: View {
 
     let monitor: SystemMonitor
     let preferences: Preferences
+    let keepAwake: KeepAwake
     /// Display names, such as "Wi-Fi", keyed by BSD name.
     let interfaceNames: [String: String]
     let focus: DetailFocus
@@ -82,7 +83,8 @@ struct DetailsView: View {
                 sensors: monitor.sensors,
                 battery: monitor.battery,
                 history: monitor.powerHistory,
-                processes: monitor.processes
+                processes: monitor.processes,
+                isKeepingAwake: keepAwake.isEnabled
             )
         case .disk:
             if let disk = monitor.disk {

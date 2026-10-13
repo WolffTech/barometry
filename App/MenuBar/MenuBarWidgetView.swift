@@ -47,9 +47,27 @@ struct MenuBarWidgetView: View {
                     }
                 }
             case .battery(let indicator):
+                if let badge = indicator.badge {
+                    BadgeImage(badge: badge)
+                        .font(.system(size: 10, weight: .semibold))
+                }
                 BatteryIcon(fraction: indicator.fraction, glyph: BatteryGlyph(indicator.status))
                 BatteryText(indicator: indicator)
             }
+        }
+    }
+}
+
+extension KeepAwake {
+    static let systemImage = "cup.and.heat.waves.fill"
+}
+
+private struct BadgeImage: View {
+    let badge: Badge
+
+    var body: some View {
+        switch badge {
+        case .keepAwake: Image(systemName: KeepAwake.systemImage)
         }
     }
 }
@@ -236,9 +254,14 @@ private struct ReadoutView: View {
 
     var body: some View {
         VStack(spacing: -2) {
-            Text(readout.label)
-                .font(.system(size: 7, weight: .semibold))
-                .tracking(0.4)
+            HStack(spacing: 1.5) {
+                if let badge = readout.badge {
+                    BadgeImage(badge: badge)
+                }
+                Text(readout.label)
+                    .tracking(0.4)
+            }
+            .font(.system(size: 7, weight: .semibold))
             // The hidden template sets a minimum width; longer values still widen the item.
             ZStack {
                 Text(readout.widthTemplate)

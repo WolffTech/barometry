@@ -18,6 +18,7 @@ Barometry shows CPU, GPU, memory, network, sensor, and battery readings as compa
 - Details beside the dashboard: hover a section to see its history, breakdown, and top processes, or click it to keep them open
 - Temperatures in °C or °F, and a choice of network interface
 - A refresh interval of 1, 2, or 5 seconds, with 1-second updates while the dashboard is open
+- Keep Awake, which stops idle sleep and keeps the display on, marked with a cup on the battery in the menu bar
 - Launch at login
 - Under 1% CPU while idle
 
@@ -30,6 +31,8 @@ There are no releases yet. [Build from source](#build-from-source) to try it.
 ### Getting started
 
 Barometry lives in the menu bar and has no Dock icon. Click a menu bar item to open the dashboard, and hover or click a section to see its details. Choose **Settings…** (⌘,) to pick modules, the layout, and the refresh interval. Quit from the dashboard or with ⌘Q.
+
+Turn on Keep Awake with the cup button in the dashboard's footer, or ⌥-click the battery item. It stays on until you turn it off or quit Barometry.
 
 In the individual layout, hold ⌘ and drag menu bar items to rearrange them.
 

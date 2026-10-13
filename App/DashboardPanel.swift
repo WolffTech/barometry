@@ -24,6 +24,7 @@ final class DashboardPanel: NSPanel {
 
     private let monitor: SystemMonitor
     private let preferences: Preferences
+    private let keepAwake: KeepAwake
     private let machine = Machine.current()
     private let openSettings: () -> Void
     private let focus = DetailFocus()
@@ -31,9 +32,10 @@ final class DashboardPanel: NSPanel {
     private var outsideClickMonitor: Any?
     private var placement: Placement?
 
-    init(monitor: SystemMonitor, preferences: Preferences, openSettings: @escaping () -> Void) {
+    init(monitor: SystemMonitor, preferences: Preferences, keepAwake: KeepAwake, openSettings: @escaping () -> Void) {
         self.monitor = monitor
         self.preferences = preferences
+        self.keepAwake = keepAwake
         self.openSettings = openSettings
         super.init(
             contentRect: .zero,
@@ -90,6 +92,7 @@ final class DashboardPanel: NSPanel {
         let dashboard = DashboardView(
             monitor: monitor,
             preferences: preferences,
+            keepAwake: keepAwake,
             machine: machine,
             interfaceNames: interfaceNames,
             focus: focus,
@@ -117,6 +120,7 @@ final class DashboardPanel: NSPanel {
         let details = DetailsView(
             monitor: monitor,
             preferences: preferences,
+            keepAwake: keepAwake,
             interfaceNames: interfaceNames,
             focus: focus
         ) { [weak self] layout in

@@ -34,14 +34,17 @@ final class StatusItemController: NSObject {
 
     private let preferences: Preferences
     private let monitor: SystemMonitor
+    private let keepAwake = KeepAwake()
     private let panel: DashboardPanel
     private var slots: [Slot] = []
     private var itemLayout: ItemLayout?
+    /// Shows Keep Awake when no battery widget is visible to carry its badge.
+    private var keepAwakeItem: NSStatusItem?
 
     init(preferences: Preferences, openSettings: @escaping () -> Void) {
         self.preferences = preferences
         monitor = SystemMonitor(interval: preferences.refreshInterval.duration)
-        panel = DashboardPanel(monitor: monitor, preferences: preferences, openSettings: openSettings)
+        panel = DashboardPanel(monitor: monitor, preferences: preferences, keepAwake: keepAwake, openSettings: openSettings)
         super.init()
         panel.onVisibilityChange = { [monitor, preferences] isVisible in
             monitor.interval = isVisible ? Self.dashboardInterval : preferences.refreshInterval.duration
@@ -66,6 +69,7 @@ final class StatusItemController: NSObject {
         if wanted != itemLayout {
             rebuildItems(wanted)
         }
+        updateKeepAwakeItem()
         let interface = preferences.networkInterface.bsdName
         if monitor.networkInterface != interface {
             monitor.networkInterface = interface
@@ -95,6 +99,18 @@ final class StatusItemController: NSObject {
         }
     }
 
+    private func updateKeepAwakeItem() {
+        let isWanted = keepAwake.isEnabled && !preferences.menuBarModules.visible.contains(.battery)
+        if isWanted, keepAwakeItem == nil {
+            let item = makeItem(autosaveName: "barometry.keepAwake", accessibilityLabel: "Keep Awake")
+            item.button?.image = NSImage(systemSymbolName: KeepAwake.systemImage, accessibilityDescription: nil)
+            keepAwakeItem = item
+        } else if !isWanted, let item = keepAwakeItem {
+            NSStatusBar.system.removeStatusItem(item)
+            keepAwakeItem = nil
+        }
+    }
+
     private func makeItem(autosaveName: String, accessibilityLabel: String) -> NSStatusItem {
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         item.autosaveName = autosaveName
@@ -111,7 +127,9 @@ final class StatusItemController: NSObject {
         for index in slots.indices {
             let modules = slots[index].modules
             let style = slots[index].style
-            let content = modules.map { monitor.widgetContent(for: $0, style: style, temperatureUnit: preferences.temperatureUnit) }
+            let content = modules.map {
+                monitor.widgetContent(for: $0, style: style, temperatureUnit: preferences.temperatureUnit, isKeepingAwake: keepAwake.isEnabled)
+            }
             guard content != slots[index].renderedContent, let button = slots[index].item.button else { continue }
 
             let renderer = slots[index].renderer
@@ -125,8 +143,14 @@ final class StatusItemController: NSObject {
     }
 
     /// An individual module's item opens with its details pinned; the combined item opens without details.
+    /// ⌥-clicking an item that shows Keep Awake toggles it instead.
     @objc private func togglePanel(_ sender: NSStatusBarButton) {
         let modules = slots.first { $0.item.button === sender }?.modules ?? []
+        if NSApp.currentEvent?.modifierFlags.contains(.option) == true,
+           modules.contains(.battery) || sender === keepAwakeItem?.button {
+            keepAwake.toggle()
+            return
+        }
         let section = modules.count == 1 ? modules.first.map(DashboardSection.init) : nil
         panel.toggle(below: sender, showing: section)
     }

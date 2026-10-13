@@ -11,6 +11,7 @@ struct DashboardView: View {
 
     let monitor: SystemMonitor
     let preferences: Preferences
+    let keepAwake: KeepAwake
     let machine: Machine
     /// Display names, such as "Wi-Fi", keyed by BSD name.
     let interfaceNames: [String: String]
@@ -117,6 +118,14 @@ struct DashboardView: View {
     private var footer: some View {
         HStack(spacing: 4) {
             Button("Activity Monitor", action: actions.openActivityMonitor)
+            // Icon only: a label doesn't fit beside the other buttons.
+            Toggle(isOn: Binding { keepAwake.isEnabled } set: { keepAwake.setEnabled($0) }) {
+                Label("Keep Awake", systemImage: KeepAwake.systemImage)
+            }
+            .toggleStyle(.button)
+            .labelStyle(.iconOnly)
+            .foregroundStyle(keepAwake.isEnabled ? AnyShapeStyle(DashboardSection.power.tint) : AnyShapeStyle(.secondary))
+            .help(keepAwake.isEnabled ? "Keep Awake is on" : "Keep Awake")
             Spacer()
             Button("Settings…", action: actions.openSettings)
                 .keyboardShortcut(",")

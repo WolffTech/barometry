@@ -29,6 +29,7 @@ struct PowerDetails: View {
     let battery: BatterySample?
     let history: History<Power>
     let processes: TopProcesses?
+    let isKeepingAwake: Bool
 
     @Environment(\.temperatureUnit) private var temperatureUnit
 
@@ -50,6 +51,9 @@ struct PowerDetails: View {
                     DetailRow(label: "Maximum capacity", value: health.maximumCapacity.formatted())
                     DetailRow(label: "Cycle count", value: health.cycleCount.formatted())
                 }
+            }
+            if isKeepingAwake {
+                DetailRow(label: "Keep awake", value: "On")
             }
             if let temperature = sensors?.cpuTemperature {
                 DetailRow(label: "CPU temperature", value: temperature.formatted(in: temperatureUnit))
