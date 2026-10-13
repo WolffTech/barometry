@@ -7,7 +7,9 @@ struct MenuBarWidgetContentTests {
 
     private func content(
         _ module: MenuBarModule,
+        style: MenuBarStyle = .graphical,
         cpuHistory: [CPULoad] = [],
+        memory: MemorySample? = nil,
         network: NetworkSample? = nil,
         battery: BatterySample? = nil,
         sensors: SensorSample? = nil,
@@ -15,9 +17,10 @@ struct MenuBarWidgetContentTests {
     ) -> MenuBarWidgetContent {
         .make(
             module: module,
+            style: style,
             cpuHistory: cpuHistory,
             gpuHistory: [],
-            memory: nil,
+            memory: memory,
             network: network,
             battery: battery,
             sensors: sensors,
@@ -99,5 +102,52 @@ struct MenuBarWidgetContentTests {
     ])
     func batteryStatusLine(state: BatterySample.State, expected: String) {
         #expect(MenuBarWidgetContent.batteryStatus(state, locale: locale) == expected)
+    }
+
+    @Test func textCPUShowsLatestLoad() {
+        let history = [CPULoad(user: Percent(0.5), system: .zero), CPULoad(user: Percent(0.2), system: Percent(0.02))]
+
+        #expect(content(.cpu, style: .text, cpuHistory: history) == .readouts([Readout(label: "CPU", value: "22%", widthTemplate: "100%")]))
+    }
+
+    @Test func textSensorsSplitIntoTemperatureAndPower() {
+        let sensors = SensorSample(cpuTemperature: Temperature(celsius: 50), gpuTemperature: nil, systemPower: Power(watts: 9.41), fans: [])
+
+        #expect(content(.sensors, style: .text, sensors: sensors, temperatureUnit: .fahrenheit) == .readouts([
+            Readout(label: "TEMP", value: "122°", widthTemplate: "188°"),
+            Readout(label: "PWR", value: "9.4 W", widthTemplate: "88.8 W"),
+        ]))
+    }
+
+    @Test(arguments: [
+        (BatterySample.State.charging(timeToFull: nil), "⚡︎87%"),
+        (.discharging(timeRemaining: .seconds(60)), "87%"),
+        (.notCharging, "87%"),
+    ])
+    func textBatteryMarksCharging(state: BatterySample.State, expected: String) {
+        let battery = BatterySample(charge: Percent(0.87), state: state)
+
+        guard case .readouts(let readouts) = content(.battery, style: .text, battery: battery) else {
+            Issue.record("Expected readouts")
+            return
+        }
+
+        #expect(readouts.map(\.value) == [expected])
+    }
+
+    @Test(arguments: [MenuBarModule.cpu, .gpu, .memory, .battery])
+    func textMissingReadingsShowDashes(module: MenuBarModule) {
+        guard case .readouts(let readouts) = content(module, style: .text) else {
+            Issue.record("Expected readouts")
+            return
+        }
+
+        #expect(readouts.map(\.value) == ["—"])
+    }
+
+    @Test func networkLooksTheSameInBothStyles() {
+        let network = NetworkSample(interface: "en0", upload: ByteRate(bytesPerSecond: 22_000), download: ByteRate(bytesPerSecond: 44_000))
+
+        #expect(content(.network, style: .text, network: network) == content(.network, network: network))
     }
 }

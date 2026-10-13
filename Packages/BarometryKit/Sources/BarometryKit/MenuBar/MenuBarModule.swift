@@ -38,3 +38,10 @@ public enum MenuBarLayout: String, CaseIterable, Codable, Sendable {
     /// A single status item showing every enabled module side by side.
     case combined
 }
+
+public enum MenuBarStyle: String, CaseIterable, Codable, Sendable {
+    /// Bar graphs for CPU and GPU and a fill gauge for memory.
+    case graphical
+    /// Every module as labeled numbers.
+    case text
+}

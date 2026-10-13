@@ -10,19 +10,24 @@ final class StatusItemController: NSObject {
     /// Which status items exist; they're rebuilt when this changes.
     private struct ItemLayout: Equatable {
         let layout: MenuBarLayout
+        /// Part of the layout so a style change rebuilds the items, which clears their rendered
+        /// content. Network content is the same in both styles but drops its label in text.
+        let style: MenuBarStyle
         let modules: [MenuBarModule]
     }
 
     /// A status item and the modules drawn into it.
     private struct Slot {
         let item: NSStatusItem
+        let style: MenuBarStyle
         let modules: [MenuBarModule]
         /// Reused across renders so SwiftUI updates one view graph instead of building a new one each tick.
-        let renderer = ImageRenderer(content: MenuBarItemView(widgets: []))
+        let renderer = ImageRenderer(content: MenuBarItemView(style: .graphical, widgets: []))
         var renderedContent: [MenuBarWidgetContent]?
 
-        init(item: NSStatusItem, modules: [MenuBarModule]) {
+        init(item: NSStatusItem, style: MenuBarStyle, modules: [MenuBarModule]) {
             self.item = item
+            self.style = style
             self.modules = modules
         }
     }
@@ -57,7 +62,7 @@ final class StatusItemController: NSObject {
     }
 
     private func applyPreferences() {
-        let wanted = ItemLayout(layout: preferences.menuBarLayout, modules: preferences.menuBarModules.visible)
+        let wanted = ItemLayout(layout: preferences.menuBarLayout, style: preferences.menuBarStyle, modules: preferences.menuBarModules.visible)
         if wanted != itemLayout {
             rebuildItems(wanted)
         }
@@ -83,10 +88,10 @@ final class StatusItemController: NSObject {
             // New status items appear to the left of existing ones, so create them in
             // reverse to get the modules in order. The autosave name keeps ⌘-drag positions.
             slots = modules.reversed().map { module in
-                Slot(item: makeItem(autosaveName: "barometry.\(module.rawValue)", accessibilityLabel: module.name), modules: [module])
+                Slot(item: makeItem(autosaveName: "barometry.\(module.rawValue)", accessibilityLabel: module.name), style: itemLayout.style, modules: [module])
             }
         case .combined:
-            slots = [Slot(item: makeItem(autosaveName: "barometry.combined", accessibilityLabel: "Barometry"), modules: modules)]
+            slots = [Slot(item: makeItem(autosaveName: "barometry.combined", accessibilityLabel: "Barometry"), style: itemLayout.style, modules: modules)]
         }
     }
 
@@ -105,11 +110,12 @@ final class StatusItemController: NSObject {
     private func renderItems() {
         for index in slots.indices {
             let modules = slots[index].modules
-            let content = modules.map { monitor.widgetContent(for: $0, temperatureUnit: preferences.temperatureUnit) }
+            let style = slots[index].style
+            let content = modules.map { monitor.widgetContent(for: $0, style: style, temperatureUnit: preferences.temperatureUnit) }
             guard content != slots[index].renderedContent, let button = slots[index].item.button else { continue }
 
             let renderer = slots[index].renderer
-            renderer.content = MenuBarItemView(widgets: Array(zip(modules, content)))
+            renderer.content = MenuBarItemView(style: style, widgets: Array(zip(modules, content)))
             renderer.scale = button.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
             guard let image = renderer.nsImage else { continue }
             image.isTemplate = true

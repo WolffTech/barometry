@@ -81,6 +81,11 @@ struct SettingsView: View {
                 Text("Combined").tag(MenuBarLayout.combined)
             }
             .pickerStyle(.segmented)
+            Picker("Style", selection: $preferences.menuBarStyle) {
+                Text("Graphs").tag(MenuBarStyle.graphical)
+                Text("Text").tag(MenuBarStyle.text)
+            }
+            .pickerStyle(.segmented)
             ForEach(preferences.menuBarModules.order) { module in
                 moduleRow(module)
             }

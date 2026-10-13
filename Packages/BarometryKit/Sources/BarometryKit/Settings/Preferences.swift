@@ -9,6 +9,10 @@ public final class Preferences {
         didSet { defaults.set(menuBarLayout.rawValue, forKey: Key.menuBarLayout) }
     }
 
+    public var menuBarStyle: MenuBarStyle {
+        didSet { defaults.set(menuBarStyle.rawValue, forKey: Key.menuBarStyle) }
+    }
+
     public var menuBarModules: MenuBarModuleSelection {
         didSet {
             defaults.set(menuBarModules.order.map(\.rawValue), forKey: Key.menuBarModuleOrder)
@@ -43,6 +47,7 @@ public final class Preferences {
     public init(defaults: UserDefaults = .standard, locale: Locale = .autoupdatingCurrent) {
         self.defaults = defaults
         menuBarLayout = defaults.string(forKey: Key.menuBarLayout).flatMap(MenuBarLayout.init(rawValue:)) ?? .individual
+        menuBarStyle = defaults.string(forKey: Key.menuBarStyle).flatMap(MenuBarStyle.init(rawValue:)) ?? .graphical
         menuBarModules = MenuBarModuleSelection(
             order: Self.decode(defaults.stringArray(forKey: Key.menuBarModuleOrder)) ?? MenuBarModule.allCases,
             hidden: Set(Self.decode(defaults.stringArray(forKey: Key.hiddenMenuBarModules)) ?? [])
@@ -61,6 +66,7 @@ public final class Preferences {
 
     private enum Key {
         static let menuBarLayout = "menuBarLayout"
+        static let menuBarStyle = "menuBarStyle"
         static let menuBarModuleOrder = "menuBarModuleOrder"
         static let hiddenMenuBarModules = "hiddenMenuBarModules"
         static let refreshInterval = "refreshInterval"
