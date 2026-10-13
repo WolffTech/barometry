@@ -17,6 +17,7 @@ struct PreferencesTests {
     @Test func changesPersistAcrossInstances() {
         let preferences = Preferences(defaults: defaults)
         preferences.menuBarLayout = .combined
+        preferences.menuBarStyle = .text
         preferences.menuBarModules.move(.battery, by: -10)
         preferences.menuBarModules.setVisible(false, for: .gpu)
         preferences.refreshInterval = .fiveSeconds
@@ -27,6 +28,7 @@ struct PreferencesTests {
         let reloaded = Preferences(defaults: defaults)
 
         #expect(reloaded.menuBarLayout == .combined)
+        #expect(reloaded.menuBarStyle == .text)
         #expect(reloaded.menuBarModules.visible == [.battery, .cpu, .memory, .network, .sensors])
         #expect(reloaded.refreshInterval == .fiveSeconds)
         #expect(reloaded.temperatureUnit == .fahrenheit)

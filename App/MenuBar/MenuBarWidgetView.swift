@@ -7,12 +7,13 @@ private let widgetHeight: CGFloat = 22
 
 /// One or more modules side by side, as drawn into a single status item.
 struct MenuBarItemView: View {
+    let style: MenuBarStyle
     let widgets: [(module: MenuBarModule, content: MenuBarWidgetContent)]
 
     var body: some View {
         HStack(spacing: 10) {
             ForEach(widgets, id: \.module) { widget in
-                MenuBarWidgetView(module: widget.module, content: widget.content)
+                MenuBarWidgetView(style: style, module: widget.module, content: widget.content)
             }
         }
         .foregroundStyle(.black)
@@ -22,12 +23,16 @@ struct MenuBarItemView: View {
 }
 
 struct MenuBarWidgetView: View {
+    let style: MenuBarStyle
     let module: MenuBarModule
     let content: MenuBarWidgetContent
 
     var body: some View {
         HStack(spacing: 4) {
-            StackedLabel(text: module.label)
+            // Text readouts carry their own labels, and network's arrows already identify it.
+            if style == .graphical {
+                StackedLabel(text: module.label)
+            }
             switch content {
             case .graph(let values):
                 BarGraph(values: values)
@@ -35,6 +40,12 @@ struct MenuBarWidgetView: View {
                 FillGauge(fraction: fraction)
             case .lines(let top, let bottom, let glyphs, let widthTemplate):
                 TwoLineText(top: top, bottom: bottom, glyphs: glyphs, widthTemplate: widthTemplate)
+            case .readouts(let readouts):
+                HStack(spacing: 8) {
+                    ForEach(readouts, id: \.label) { readout in
+                        ReadoutView(readout: readout)
+                    }
+                }
             }
         }
     }
@@ -101,6 +112,28 @@ private struct FillGauge: View {
                     .frame(height: (size.height - inset * 2) * min(max(fraction, 0), 1))
                     .padding(inset)
             }
+    }
+}
+
+/// A small label centered over a large value, such as "CPU" over "22%".
+private struct ReadoutView: View {
+    let readout: Readout
+
+    var body: some View {
+        VStack(spacing: -2) {
+            Text(readout.label)
+                .font(.system(size: 7, weight: .semibold))
+                .tracking(0.4)
+            // The hidden template sets a minimum width; longer values still widen the item.
+            ZStack {
+                Text(readout.widthTemplate)
+                    .hidden()
+                Text(readout.value)
+            }
+            .font(.system(size: 13, weight: .bold).monospacedDigit())
+        }
+        .lineLimit(1)
+        .fixedSize()
     }
 }
 
