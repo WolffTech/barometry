@@ -42,15 +42,21 @@ public final class Preferences {
         didSet { defaults.set(hiddenDashboardSections.map(\.rawValue).sorted(), forKey: Key.hiddenDashboardSections) }
     }
 
+    /// Sections this Mac can't show, such as battery on a desktop. Kept separate from
+    /// `hiddenDashboardSections` so the user's choice survives a move to a Mac with the hardware.
+    public let unavailableDashboardSections: Set<DashboardSection>
+
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// `unavailableMenuBarModules` are ones this Mac can't show, such as battery on a desktop.
+    /// The unavailable modules and sections are ones this Mac can't show, such as battery on a desktop.
     public init(
         defaults: UserDefaults = .standard,
         locale: Locale = .autoupdatingCurrent,
-        unavailableMenuBarModules: Set<MenuBarModule> = []
+        unavailableMenuBarModules: Set<MenuBarModule> = [],
+        unavailableDashboardSections: Set<DashboardSection> = []
     ) {
         self.defaults = defaults
+        self.unavailableDashboardSections = unavailableDashboardSections
         menuBarLayout = defaults.string(forKey: Key.menuBarLayout).flatMap(MenuBarLayout.init(rawValue:)) ?? .individual
         menuBarStyle = defaults.string(forKey: Key.menuBarStyle).flatMap(MenuBarStyle.init(rawValue:)) ?? .graphical
         menuBarModules = MenuBarModuleSelection(
@@ -192,6 +198,12 @@ public enum DashboardSection: String, CaseIterable, Sendable, Identifiable {
     case disk
 
     public var id: String { rawValue }
+
+    /// Sections this Mac lacks the hardware for. Hardware doesn't change while running,
+    /// so check once at launch.
+    public static func unavailableOnThisMac() -> Set<DashboardSection> {
+        BatterySampler.isInstalled ? [] : [.battery]
+    }
 
     public var name: String {
         switch self {

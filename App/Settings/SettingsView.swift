@@ -24,7 +24,14 @@ struct SettingsView: View {
             }
             Section("Dashboard") {
                 ForEach(DashboardSection.allCases) { section in
-                    Toggle(section.name, isOn: dashboardSectionBinding(section))
+                    let isAvailable = !preferences.unavailableDashboardSections.contains(section)
+                    Toggle(isOn: dashboardSectionBinding(section)) {
+                        Text(section.name)
+                        if !isAvailable {
+                            Text("Not available on this Mac")
+                        }
+                    }
+                    .disabled(!isAvailable)
                 }
             }
         }
@@ -168,7 +175,8 @@ struct SettingsView: View {
 
     private func dashboardSectionBinding(_ section: DashboardSection) -> Binding<Bool> {
         Binding {
-            !preferences.hiddenDashboardSections.contains(section)
+            !preferences.unavailableDashboardSections.contains(section)
+                && !preferences.hiddenDashboardSections.contains(section)
         } set: { isVisible in
             if isVisible {
                 preferences.hiddenDashboardSections.remove(section)
