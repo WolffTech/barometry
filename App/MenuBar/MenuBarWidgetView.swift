@@ -46,6 +46,9 @@ struct MenuBarWidgetView: View {
                         ReadoutView(readout: readout)
                     }
                 }
+            case .battery(let indicator):
+                BatteryIcon(fraction: indicator.fraction, glyph: BatteryGlyph(indicator.status))
+                BatteryText(indicator: indicator)
             }
         }
     }
@@ -112,6 +115,118 @@ private struct FillGauge: View {
                     .frame(height: (size.height - inset * 2) * min(max(fraction, 0), 1))
                     .padding(inset)
             }
+    }
+}
+
+/// What's drawn over a battery's fill.
+private enum BatteryGlyph {
+    case bolt
+    case plug
+
+    init?(_ status: BatteryIndicator.Status) {
+        switch status {
+        case .charging: self = .bolt
+        case .charged, .paused: self = .plug
+        case .discharging: return nil
+        }
+    }
+
+    /// Paths in `BatteryIcon`'s coordinate space, centered on the body.
+    var path: Path {
+        switch self {
+        case .bolt:
+            Path { path in
+                path.addLines([
+                    CGPoint(x: 11.9, y: 1.7), CGPoint(x: 7.7, y: 6.7), CGPoint(x: 10.4, y: 6.7),
+                    CGPoint(x: 9.6, y: 10.3), CGPoint(x: 13.8, y: 5.3), CGPoint(x: 11.1, y: 5.3),
+                ])
+                path.closeSubpath()
+            }
+        case .plug:
+            Path { path in
+                // Prongs on the left, rounded body, cord to the right.
+                path.addRect(CGRect(x: 7, y: 3.7, width: 2, height: 1.1))
+                path.addRect(CGRect(x: 7, y: 7.2, width: 2, height: 1.1))
+                path.addPath(UnevenRoundedRectangle(bottomTrailingRadius: 2, topTrailingRadius: 2)
+                    .path(in: CGRect(x: 8.8, y: 2.7, width: 4.4, height: 6.6)))
+                path.addRect(CGRect(x: 13, y: 5.4, width: 2.2, height: 1.2))
+            }
+        }
+    }
+}
+
+/// Horizontal battery filled from the left, with an optional glyph cut out of the fill.
+private struct BatteryIcon: View {
+    let fraction: Double
+    let glyph: BatteryGlyph?
+
+    private let size = CGSize(width: 24, height: 12)
+    private let shell = CGRect(x: 0.5, y: 0.5, width: 20.5, height: 11)
+    private let fillBounds = CGRect(x: 2, y: 2, width: 17.5, height: 8)
+
+    var body: some View {
+        Canvas { context, _ in
+            // Dimmed outline so the fill and glyph read first.
+            var outline = context
+            outline.opacity = 0.55
+            outline.stroke(RoundedRectangle(cornerRadius: 3).path(in: shell), with: .foreground)
+            outline.fill(Capsule().path(in: CGRect(x: 21.8, y: 4, width: 1.6, height: 4)), with: .foreground)
+
+            let level = min(max(fraction, 0), 1)
+            if level > 0 {
+                // A layer so the cut-out clears only the fill, not the outline.
+                context.drawLayer { layer in
+                    var bounds = fillBounds
+                    bounds.size.width *= level
+                    layer.fill(RoundedRectangle(cornerRadius: 1.5).path(in: bounds), with: .foreground)
+                    if let glyph {
+                        // A gap around the glyph keeps it legible where it overlaps the fill.
+                        layer.blendMode = .destinationOut
+                        layer.fill(glyph.path, with: .foreground)
+                        layer.stroke(glyph.path, with: .foreground, style: StrokeStyle(lineWidth: 1.8, lineJoin: .round))
+                    }
+                }
+            }
+            if let glyph {
+                context.fill(glyph.path, with: .foreground)
+            }
+        }
+        .frame(width: size.width, height: size.height)
+    }
+}
+
+/// The time or state over the charge. Times sit right-aligned like other modules, while
+/// "Full" and the pause bars center over the charge.
+private struct BatteryText: View {
+    let indicator: BatteryIndicator
+
+    var body: some View {
+        // The hidden template sets a minimum width; longer values still widen the item.
+        ZStack(alignment: .trailing) {
+            VStack(spacing: -2) {
+                Text(BatteryIndicator.widthTemplate.status)
+                Text(BatteryIndicator.widthTemplate.charge)
+            }
+            .hidden()
+            VStack(alignment: .trailing, spacing: -2) {
+                switch indicator.status {
+                case .charging(let time), .discharging(let time):
+                    Text(time)
+                case .charged:
+                    // Flexible width spans the stack, so the text centers over the charge.
+                    Text("Full")
+                        .frame(maxWidth: .infinity)
+                case .paused:
+                    Text(Image(systemName: "pause.fill"))
+                        .frame(maxWidth: .infinity)
+                }
+                Text(indicator.charge)
+            }
+        }
+        .font(.system(size: 9.5, weight: .medium).monospacedDigit())
+        .lineLimit(1)
+        // Keeps the stack at its natural width so the flexible line can't widen the item.
+        .fixedSize()
     }
 }
 

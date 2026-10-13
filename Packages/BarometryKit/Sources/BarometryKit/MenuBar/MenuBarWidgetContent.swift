@@ -12,6 +12,8 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
     case lines(top: String, bottom: String, glyphs: LineGlyphs?, widthTemplate: String)
     /// Values with short labels above them, side by side.
     case readouts([Readout])
+    /// A battery filled to its charge level, beside the time or state over the charge.
+    case battery(BatteryIndicator)
 
     public static let graphBarCount = 20
     static let missing = "—"
@@ -70,12 +72,7 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
                 Readout(label: "PWR", value: power(sensors, locale: locale), widthTemplate: "88.8 W"),
             ])
         case (.battery, .graphical):
-            return .lines(
-                top: battery.map { batteryStatus($0.state, locale: locale) } ?? missing,
-                bottom: battery?.charge.formatted(locale: locale) ?? missing,
-                glyphs: nil,
-                widthTemplate: "⚡︎8:88"
-            )
+            return .battery(battery.map { BatteryIndicator($0, locale: locale) } ?? .unavailable)
         case (.battery, .text):
             let charge = battery?.charge.formatted(locale: locale) ?? missing
             let isCharging = if case .charging = battery?.state { true } else { false }
@@ -92,28 +89,60 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
     private static func power(_ sensors: SensorSample?, locale: Locale) -> String {
         sensors?.systemPower?.formatted(locale: locale) ?? "\(missing) W"
     }
-
-    /// Time remaining on battery, time to full (with a bolt) while charging, or a short state word.
-    static func batteryStatus(_ state: BatterySample.State, locale: Locale) -> String {
-        func clock(_ duration: Duration) -> String {
-            duration.formatted(.time(pattern: .hourMinute).locale(locale))
-        }
-        switch state {
-        case .discharging(let timeRemaining):
-            return timeRemaining.map(clock) ?? "–:––"
-        case .charging(let timeToFull):
-            return "⚡︎" + (timeToFull.map(clock) ?? "")
-        case .charged:
-            return "Full"
-        case .notCharging:
-            return "AC"
-        }
-    }
 }
 
 public struct LineGlyphs: Equatable, Sendable {
     public let top: String
     public let bottom: String
+}
+
+public struct BatteryIndicator: Equatable, Sendable {
+    /// Each status implies its icon, so the icon can't contradict the state.
+    public enum Status: Equatable, Sendable {
+        /// Drawn with a bolt.
+        case charging(timeToFull: String)
+        /// Drawn with the plain fill.
+        case discharging(timeRemaining: String)
+        /// Drawn with a plug, with "Full" above the charge.
+        case charged
+        /// On power but holding charge. Drawn with a plug, with pause bars above the charge.
+        case paused
+    }
+
+    /// Fill level in 0...1.
+    public let fraction: Double
+    public let status: Status
+    public let charge: String
+
+    /// The widest expected lines, used to reserve width so the item doesn't shift.
+    public static let widthTemplate = (status: "8:88", charge: "100%")
+
+    /// An empty battery with dashes, for when no reading is available.
+    static let unavailable = BatteryIndicator(
+        fraction: 0,
+        status: .discharging(timeRemaining: MenuBarWidgetContent.missing),
+        charge: MenuBarWidgetContent.missing
+    )
+
+    init(fraction: Double, status: Status, charge: String) {
+        self.fraction = fraction
+        self.status = status
+        self.charge = charge
+    }
+
+    init(_ sample: BatterySample, locale: Locale) {
+        // Estimates are nil while macOS is still calculating.
+        func clock(_ duration: Duration?) -> String {
+            duration.map { $0.formatted(.time(pattern: .hourMinute).locale(locale)) } ?? "–:––"
+        }
+        let status: Status = switch sample.state {
+        case .charging(let timeToFull): .charging(timeToFull: clock(timeToFull))
+        case .discharging(let timeRemaining): .discharging(timeRemaining: clock(timeRemaining))
+        case .charged: .charged
+        case .notCharging: .paused
+        }
+        self.init(fraction: sample.charge.fraction, status: status, charge: sample.charge.formatted(locale: locale))
+    }
 }
 
 public struct Readout: Equatable, Sendable {
