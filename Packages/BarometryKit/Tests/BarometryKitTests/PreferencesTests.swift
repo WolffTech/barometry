@@ -72,6 +72,27 @@ struct MenuBarModuleSelectionTests {
         #expect(selection.visible == MenuBarModule.allCases)
     }
 
+    @Test func unavailableModuleStaysHiddenWithoutChangingTheUsersChoice() {
+        var selection = MenuBarModuleSelection(unavailable: [.battery])
+        selection.setVisible(true, for: .battery)
+
+        #expect(!selection.visible.contains(.battery))
+        #expect(!selection.hidden.contains(.battery))
+    }
+
+    @Test func lastAvailableModuleCannotBeHidden() {
+        var selection = MenuBarModuleSelection(hidden: [.gpu, .memory, .network, .sensors], unavailable: [.battery])
+        selection.setVisible(false, for: .cpu)
+
+        #expect(selection.visible == [.cpu])
+    }
+
+    @Test func hidingEveryAvailableModuleShowsThemAll() {
+        let selection = MenuBarModuleSelection(hidden: [.cpu, .gpu, .memory, .network, .sensors], unavailable: [.battery])
+
+        #expect(selection.visible == [.cpu, .gpu, .memory, .network, .sensors])
+    }
+
     @Test func moveStopsAtTheEnds() {
         var selection = MenuBarModuleSelection()
         selection.move(.gpu, by: -5)

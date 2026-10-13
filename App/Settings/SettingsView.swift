@@ -24,7 +24,14 @@ struct SettingsView: View {
             }
             Section("Dashboard") {
                 ForEach(DashboardSection.allCases) { section in
-                    Toggle(section.name, isOn: dashboardSectionBinding(section))
+                    let isAvailable = !preferences.unavailableDashboardSections.contains(section)
+                    Toggle(isOn: dashboardSectionBinding(section)) {
+                        Text(section.name)
+                        if !isAvailable {
+                            Text("Not available on this Mac")
+                        }
+                    }
+                    .disabled(!isAvailable)
                 }
             }
         }
@@ -104,7 +111,7 @@ struct SettingsView: View {
 
     private func moduleRow(_ module: MenuBarModule) -> some View {
         let selection = preferences.menuBarModules
-        return LabeledContent(module.name) {
+        return LabeledContent {
             HStack(spacing: 12) {
                 // Order only applies to the combined item; individual items are ⌘-dragged.
                 if preferences.menuBarLayout == .combined {
@@ -129,7 +136,13 @@ struct SettingsView: View {
             }
             .buttonStyle(.borderless)
             .labelStyle(.iconOnly)
+        } label: {
+            Text(module.name)
+            if !selection.isAvailable(module) {
+                Text("Not available on this Mac")
+            }
         }
+        .disabled(!selection.isAvailable(module))
     }
 
     private var launchAtLogin: Binding<Bool> {
@@ -162,7 +175,8 @@ struct SettingsView: View {
 
     private func dashboardSectionBinding(_ section: DashboardSection) -> Binding<Bool> {
         Binding {
-            !preferences.hiddenDashboardSections.contains(section)
+            !preferences.unavailableDashboardSections.contains(section)
+                && !preferences.hiddenDashboardSections.contains(section)
         } set: { isVisible in
             if isVisible {
                 preferences.hiddenDashboardSections.remove(section)

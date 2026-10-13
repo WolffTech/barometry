@@ -71,37 +71,25 @@ struct MenuBarWidgetContentTests {
         #expect(top == "122°")
     }
 
-    @Test func missingReadingsShowDashes() {
-        guard case .lines(let top, let bottom, _, _) = content(.battery) else {
-            Issue.record("Expected lines")
-            return
-        }
-
-        #expect(top == "—")
-        #expect(bottom == "—")
+    @Test func missingBatteryShowsEmptyGaugeWithDashes() {
+        #expect(content(.battery) == .battery(BatteryIndicator(fraction: 0, status: .discharging(timeRemaining: "—"), charge: "—")))
     }
 
     @Test func batteryShowsTimeRemainingOverCharge() {
         let battery = BatterySample(charge: Percent(0.44), state: .discharging(timeRemaining: .seconds(142 * 60)))
 
-        guard case .lines(let top, let bottom, _, _) = content(.battery, battery: battery) else {
-            Issue.record("Expected lines")
-            return
-        }
-
-        #expect(top == "2:22")
-        #expect(bottom == "44%")
+        #expect(content(.battery, battery: battery) == .battery(BatteryIndicator(fraction: 0.44, status: .discharging(timeRemaining: "2:22"), charge: "44%")))
     }
 
     @Test(arguments: [
-        (BatterySample.State.discharging(timeRemaining: nil), "–:––"),
-        (.charging(timeToFull: .seconds(30 * 60)), "⚡︎0:30"),
-        (.charging(timeToFull: nil), "⚡︎"),
-        (.charged, "Full"),
-        (.notCharging, "AC"),
+        (BatterySample.State.discharging(timeRemaining: nil), BatteryIndicator.Status.discharging(timeRemaining: "–:––")),
+        (.charging(timeToFull: .seconds(30 * 60)), .charging(timeToFull: "0:30")),
+        (.charging(timeToFull: nil), .charging(timeToFull: "–:––")),
+        (.charged, .charged),
+        (.notCharging, .paused),
     ])
-    func batteryStatusLine(state: BatterySample.State, expected: String) {
-        #expect(MenuBarWidgetContent.batteryStatus(state, locale: locale) == expected)
+    func batteryStatus(state: BatterySample.State, expected: BatteryIndicator.Status) {
+        #expect(BatteryIndicator(BatterySample(charge: Percent(0.8), state: state), locale: locale).status == expected)
     }
 
     @Test func textCPUShowsLatestLoad() {
