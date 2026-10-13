@@ -13,7 +13,7 @@ struct PowerSection: View {
     var body: some View {
         GlanceRow(
             title: "Power",
-            summary: battery.map(batterySummary) ?? summary(
+            summary: battery.map(\.chargeSummary) ?? summary(
                 sensors?.cpuTemperature.map { "CPU \($0.formatted(in: temperatureUnit))" },
                 sensors?.gpuTemperature.map { "GPU \($0.formatted(in: temperatureUnit))" }
             ),
@@ -27,7 +27,7 @@ struct PowerSection: View {
         } detail: {
             VStack(alignment: .leading, spacing: 6) {
                 if let battery {
-                    MeterRow(label: "Battery", value: batterySummary(battery), fraction: battery.charge.fraction)
+                    MeterRow(label: "Battery", value: battery.chargeSummary, fraction: battery.charge.fraction)
                         .padding(.bottom, 2)
                 }
                 if let temperature = sensors?.cpuTemperature {
@@ -49,19 +49,5 @@ struct PowerSection: View {
     /// Largest draw in the history, with a floor so idle draw doesn't fill the sparkline.
     private var peak: Double {
         max(history.map(\.watts).max() ?? 0, 10)
-    }
-
-    private func batterySummary(_ battery: BatterySample) -> String {
-        let charge = battery.charge.formatted()
-        return switch battery.state {
-        case .charging(let timeToFull):
-            timeToFull.map { "\(charge) · Full in \($0.formatted(.time(pattern: .hourMinute)))" } ?? "\(charge) · Charging"
-        case .charged:
-            "\(charge) · Charged"
-        case .notCharging:
-            "\(charge) · Not charging"
-        case .discharging(let timeRemaining):
-            timeRemaining.map { "\(charge) · \($0.formatted(.time(pattern: .hourMinute))) left" } ?? "\(charge) · On battery"
-        }
     }
 }

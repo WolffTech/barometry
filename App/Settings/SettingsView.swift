@@ -23,6 +23,11 @@ struct SettingsView: View {
                 }
             }
             Section("Dashboard") {
+                Picker("Style", selection: $preferences.dashboardStyle) {
+                    Text("Instrument Cluster").tag(DashboardStyle.cluster)
+                    Text("Glance").tag(DashboardStyle.glance)
+                }
+                .pickerStyle(.segmented)
                 ForEach(DashboardSection.allCases) { section in
                     Toggle(section.name, isOn: dashboardSectionBinding(section))
                 }

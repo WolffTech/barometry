@@ -11,7 +11,7 @@ struct MemorySection: View {
             title: "Memory",
             summary: summary(
                 "\(memory.used.formatted(.memory)) of \(memory.total.formatted(.memory))",
-                memory.pressure.level == .normal ? nil : "\(pressureName) pressure"
+                memory.pressure.level == .normal ? nil : "\(memory.pressure.level.name) pressure"
             ),
             symbol: "memorychip",
             tint: .pink,
@@ -32,16 +32,8 @@ struct MemorySection: View {
                 LegendRow(color: DashboardPalette.secondary, label: "Wired", value: memory.wired.formatted(.memory))
                 LegendRow(color: DashboardPalette.tertiary, label: "Compressed", value: memory.compressed.formatted(.memory))
                 DetailRow(label: "Cached files", value: memory.cached.formatted(.memory))
-                DetailRow(label: "Pressure", value: "\(memory.pressure.percent.formatted()) · \(pressureName)")
+                DetailRow(label: "Pressure", value: "\(memory.pressure.percent.formatted()) · \(memory.pressure.level.name)")
             }
-        }
-    }
-
-    private var pressureName: String {
-        switch memory.pressure.level {
-        case .normal: "Normal"
-        case .warning: "High"
-        case .critical: "Critical"
         }
     }
 

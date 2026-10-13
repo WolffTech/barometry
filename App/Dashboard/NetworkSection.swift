@@ -1,5 +1,4 @@
 import BarometryKit
-import Charts
 import SwiftUI
 
 struct NetworkSection: View {
@@ -40,36 +39,10 @@ struct NetworkSection: View {
         // While hovering, the legend shows the hovered sample instead of the latest one.
         let shown = hoverSlot.flatMap(history.element(inSlot:)) ?? network
         return VStack(spacing: 6) {
-            chart
+            NetworkChart(history: history, hoverSlot: $hoverSlot)
+                .frame(height: 40)
             LegendRow(color: DashboardPalette.secondary, label: "Upload", value: shown?.upload.formatted() ?? missingValue)
             LegendRow(color: DashboardPalette.primary, label: "Download", value: shown?.download.formatted() ?? missingValue)
         }
-    }
-
-    /// Upload grows up from the center line and download grows down, on one shared scale.
-    private var chart: some View {
-        let peak = max(history.map { max($0.upload.bytesPerSecond, $0.download.bytesPerSecond) }.max() ?? 0, 1_000)
-        return Chart {
-            ForEach(history.slotted, id: \.slot) { slot, sample in
-                BarMark(x: .value("Time", slot), y: .value("Rate", sample.upload.bytesPerSecond), width: .fixed(1.5))
-                    .foregroundStyle(DashboardPalette.secondary)
-                BarMark(x: .value("Time", slot), y: .value("Rate", -sample.download.bytesPerSecond), width: .fixed(1.5))
-                    .foregroundStyle(DashboardPalette.primary)
-            }
-            RuleMark(y: .value("Rate", 0))
-                .foregroundStyle(DashboardPalette.track)
-                .lineStyle(StrokeStyle(lineWidth: 1))
-            if let hoverSlot, history.element(inSlot: hoverSlot) != nil {
-                RuleMark(x: .value("Time", hoverSlot))
-                    .foregroundStyle(.secondary)
-                    .lineStyle(StrokeStyle(lineWidth: 1))
-            }
-        }
-        .chartXScale(domain: history.slotDomain)
-        .chartYScale(domain: -peak...peak)
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartHoverSlot($hoverSlot)
-        .frame(height: 40)
     }
 }

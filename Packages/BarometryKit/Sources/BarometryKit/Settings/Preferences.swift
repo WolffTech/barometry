@@ -38,6 +38,10 @@ public final class Preferences {
         }
     }
 
+    public var dashboardStyle: DashboardStyle {
+        didSet { defaults.set(dashboardStyle.rawValue, forKey: Key.dashboardStyle) }
+    }
+
     public var hiddenDashboardSections: Set<DashboardSection> {
         didSet { defaults.set(hiddenDashboardSections.map(\.rawValue).sorted(), forKey: Key.hiddenDashboardSections) }
     }
@@ -62,6 +66,7 @@ public final class Preferences {
         temperatureUnit = defaults.string(forKey: Key.temperatureUnit).flatMap(TemperatureUnit.init(rawValue:))
             ?? (locale.measurementSystem == .us ? .fahrenheit : .celsius)
         networkInterface = defaults.string(forKey: Key.networkInterface).map(NetworkInterfaceChoice.named) ?? .automatic
+        dashboardStyle = defaults.string(forKey: Key.dashboardStyle).flatMap(DashboardStyle.init(rawValue:)) ?? .cluster
         hiddenDashboardSections = Set(Self.decode(defaults.stringArray(forKey: Key.hiddenDashboardSections)) ?? [])
     }
 
@@ -78,6 +83,7 @@ public final class Preferences {
         static let refreshInterval = "refreshInterval"
         static let temperatureUnit = "temperatureUnit"
         static let networkInterface = "networkInterface"
+        static let dashboardStyle = "dashboardStyle"
         static let hiddenDashboardSections = "hiddenDashboardSections"
     }
 }
@@ -181,7 +187,17 @@ public enum NetworkInterfaceChoice: Hashable, Sendable {
     }
 }
 
-/// A row in the dashboard.
+/// How the dashboard lays out its sections.
+public enum DashboardStyle: String, CaseIterable, Sendable, Identifiable {
+    /// Dials and tiles.
+    case cluster
+    /// One row per section, each with a sparkline.
+    case glance
+
+    public var id: String { rawValue }
+}
+
+/// A part of the dashboard: a row in the glance style, or one or more tiles in the cluster style.
 public enum DashboardSection: String, CaseIterable, Sendable, Identifiable {
     case cpu
     case gpu

@@ -23,6 +23,7 @@ struct PreferencesTests {
         preferences.refreshInterval = .fiveSeconds
         preferences.temperatureUnit = .fahrenheit
         preferences.networkInterface = .named("en0")
+        preferences.dashboardStyle = .glance
         preferences.hiddenDashboardSections = [.disk]
 
         let reloaded = Preferences(defaults: defaults)
@@ -33,6 +34,7 @@ struct PreferencesTests {
         #expect(reloaded.refreshInterval == .fiveSeconds)
         #expect(reloaded.temperatureUnit == .fahrenheit)
         #expect(reloaded.networkInterface == .named("en0"))
+        #expect(reloaded.dashboardStyle == .glance)
         #expect(reloaded.hiddenDashboardSections == [.disk])
     }
 
@@ -47,6 +49,10 @@ struct PreferencesTests {
     @Test(arguments: [("en_US", TemperatureUnit.fahrenheit), ("en_GB", .celsius)])
     func temperatureUnitDefaultsToTheLocale(identifier: String, expected: TemperatureUnit) {
         #expect(Preferences(defaults: defaults, locale: Locale(identifier: identifier)).temperatureUnit == expected)
+    }
+
+    @Test func dashboardStyleDefaultsToTheCluster() {
+        #expect(Preferences(defaults: defaults).dashboardStyle == .cluster)
     }
 
     @Test func storedModuleOrderIsRepairedToContainEveryModuleOnce() {

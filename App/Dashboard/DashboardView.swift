@@ -64,11 +64,16 @@ struct DashboardView: View {
     private var content: some View {
         VStack(spacing: 0) {
             header
-            VStack(spacing: 2) {
-                rows
+            switch preferences.dashboardStyle {
+            case .cluster:
+                ClusterDashboard(monitor: monitor, interfaceNames: interfaceNames, shows: shows)
+            case .glance:
+                VStack(spacing: 2) {
+                    rows
+                }
+                .padding(.horizontal, 6)
+                .padding(.bottom, 6)
             }
-            .padding(.horizontal, 6)
-            .padding(.bottom, 6)
             Divider()
             footer
         }

@@ -265,6 +265,73 @@ struct SegmentedBar: View {
     }
 }
 
+/// Upload grows up from the center line and download grows down, on one shared scale.
+struct NetworkChart: View {
+    let history: History<NetworkSample>
+    /// The slot under the pointer, marked with a rule. Without a binding, the chart doesn't track the pointer.
+    var hoverSlot: Binding<Int?>?
+
+    var body: some View {
+        let peak = max(history.map { max($0.upload.bytesPerSecond, $0.download.bytesPerSecond) }.max() ?? 0, 1_000)
+        let chart = Chart {
+            ForEach(history.slotted, id: \.slot) { slot, sample in
+                BarMark(x: .value("Time", slot), y: .value("Rate", sample.upload.bytesPerSecond), width: .fixed(1.5))
+                    .foregroundStyle(DashboardPalette.secondary)
+                BarMark(x: .value("Time", slot), y: .value("Rate", -sample.download.bytesPerSecond), width: .fixed(1.5))
+                    .foregroundStyle(DashboardPalette.primary)
+            }
+            RuleMark(y: .value("Rate", 0))
+                .foregroundStyle(DashboardPalette.track)
+                .lineStyle(StrokeStyle(lineWidth: 1))
+            if let slot = hoverSlot?.wrappedValue, history.element(inSlot: slot) != nil {
+                RuleMark(x: .value("Time", slot))
+                    .foregroundStyle(.secondary)
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+            }
+        }
+        .chartXScale(domain: history.slotDomain)
+        .chartYScale(domain: -peak...peak)
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        if let hoverSlot {
+            chart.chartHoverSlot(hoverSlot)
+        } else {
+            chart
+        }
+    }
+}
+
+extension BatterySample {
+    /// What the battery is doing, such as "6:12 left" or "Charged".
+    var stateDescription: String {
+        switch state {
+        case .charging(let timeToFull):
+            timeToFull.map { "Full in \($0.formatted(.time(pattern: .hourMinute)))" } ?? "Charging"
+        case .charged:
+            "Charged"
+        case .notCharging:
+            "Not charging"
+        case .discharging(let timeRemaining):
+            timeRemaining.map { "\($0.formatted(.time(pattern: .hourMinute))) left" } ?? "On battery"
+        }
+    }
+
+    /// Charge and state, such as "87% · 6:12 left".
+    var chargeSummary: String {
+        "\(charge.formatted()) · \(stateDescription)"
+    }
+}
+
+extension MemoryPressure.Level {
+    var name: String {
+        switch self {
+        case .normal: "Normal"
+        case .warning: "High"
+        case .critical: "Critical"
+        }
+    }
+}
+
 extension View {
     /// Reports which history slot the pointer is over in a chart whose x values are slot numbers.
     func chartHoverSlot(_ slot: Binding<Int?>) -> some View {
