@@ -23,15 +23,13 @@ struct SettingsView: View {
                 }
             }
             Section("Dashboard") {
+                Picker("Style", selection: $preferences.dashboardStyle) {
+                    Text("Instrument Cluster").tag(DashboardStyle.cluster)
+                    Text("Glance").tag(DashboardStyle.glance)
+                }
+                .pickerStyle(.segmented)
                 ForEach(DashboardSection.allCases) { section in
-                    let isAvailable = !preferences.unavailableDashboardSections.contains(section)
-                    Toggle(isOn: dashboardSectionBinding(section)) {
-                        Text(section.name)
-                        if !isAvailable {
-                            Text("Not available on this Mac")
-                        }
-                    }
-                    .disabled(!isAvailable)
+                    Toggle(section.name, isOn: dashboardSectionBinding(section))
                 }
             }
         }
@@ -175,8 +173,7 @@ struct SettingsView: View {
 
     private func dashboardSectionBinding(_ section: DashboardSection) -> Binding<Bool> {
         Binding {
-            !preferences.unavailableDashboardSections.contains(section)
-                && !preferences.hiddenDashboardSections.contains(section)
+            !preferences.hiddenDashboardSections.contains(section)
         } set: { isVisible in
             if isVisible {
                 preferences.hiddenDashboardSections.remove(section)

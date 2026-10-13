@@ -47,14 +47,25 @@ public struct MemorySample: Equatable, Sendable {
     /// File-backed and purgeable memory the system can reclaim.
     public let cached: ByteCount
     public let pressure: MemoryPressure
+    /// Nil when it couldn't be read.
+    public let swapUsed: ByteCount?
 
-    public init(total: ByteCount, app: ByteCount, wired: ByteCount, compressed: ByteCount, cached: ByteCount, pressure: MemoryPressure) {
+    public init(
+        total: ByteCount,
+        app: ByteCount,
+        wired: ByteCount,
+        compressed: ByteCount,
+        cached: ByteCount,
+        pressure: MemoryPressure,
+        swapUsed: ByteCount? = nil
+    ) {
         self.total = total
         self.app = app
         self.wired = wired
         self.compressed = compressed
         self.cached = cached
         self.pressure = pressure
+        self.swapUsed = swapUsed
     }
 
     /// Matches Activity Monitor's "Memory Used".
@@ -67,7 +78,7 @@ public struct MemorySample: Equatable, Sendable {
     }
 
     /// Breaks page counts down the same way Activity Monitor does.
-    init(pages: VMPageCounts, pageSize: UInt64, total: ByteCount, pressure: MemoryPressure) {
+    init(pages: VMPageCounts, pageSize: UInt64, total: ByteCount, pressure: MemoryPressure, swapUsed: ByteCount? = nil) {
         func bytes(_ pageCount: UInt64) -> ByteCount {
             ByteCount(bytes: Int64(clamping: pageCount * pageSize))
         }
@@ -78,7 +89,8 @@ public struct MemorySample: Equatable, Sendable {
             wired: bytes(pages.wired),
             compressed: bytes(pages.compressor),
             cached: bytes(pages.external + pages.purgeable),
-            pressure: pressure
+            pressure: pressure,
+            swapUsed: swapUsed
         )
     }
 }

@@ -59,3 +59,24 @@ struct BatterySampleTests {
         #expect(BatterySample(powerSourceDescription: description([kIOPSTypeKey: kIOPSUPSType])) == nil)
     }
 }
+
+struct BatteryHealthTests {
+    @Test func readsTopLevelCapacities() {
+        let health = BatteryHealth(registry: ["CycleCount": 312, "DesignCapacity": 5000, "AppleRawMaxCapacity": 4500])
+
+        #expect(health == BatteryHealth(cycleCount: 312, maximumCapacity: Percent(0.9)))
+    }
+
+    @Test func fallsBackToBatteryData() {
+        let health = BatteryHealth(registry: [
+            "CycleCount": 18,
+            "BatteryData": ["DesignCapacity": 6000, "NominalChargeCapacity": 5700],
+        ])
+
+        #expect(health == BatteryHealth(cycleCount: 18, maximumCapacity: Percent(0.95)))
+    }
+
+    @Test func missingCapacityIsNil() {
+        #expect(BatteryHealth(registry: ["CycleCount": 18]) == nil)
+    }
+}

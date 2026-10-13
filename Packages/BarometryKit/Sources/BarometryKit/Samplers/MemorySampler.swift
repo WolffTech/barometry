@@ -29,6 +29,13 @@ struct MemorySampler {
             kernelLevel: Sysctl.integer("kern.memorystatus_vm_pressure_level") ?? 1,
             availableLevel: Sysctl.integer("kern.memorystatus_level") ?? 100
         )
-        return MemorySample(pages: pages, pageSize: pageSize, total: total, pressure: pressure)
+        let swap = Sysctl.value("vm.swapusage", empty: xsw_usage())
+        return MemorySample(
+            pages: pages,
+            pageSize: pageSize,
+            total: total,
+            pressure: pressure,
+            swapUsed: swap.map { ByteCount(bytes: Int64(clamping: $0.xsu_used)) }
+        )
     }
 }

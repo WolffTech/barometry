@@ -124,7 +124,10 @@ final class StatusItemController: NSObject {
         }
     }
 
+    /// An individual module's item opens with its details pinned; the combined item opens without details.
     @objc private func togglePanel(_ sender: NSStatusBarButton) {
-        panel.toggle(below: sender)
+        let modules = slots.first { $0.item.button === sender }?.modules ?? []
+        let section = modules.count == 1 ? modules.first.map(DashboardSection.init) : nil
+        panel.toggle(below: sender, showing: section)
     }
 }

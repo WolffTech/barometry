@@ -38,25 +38,23 @@ public final class Preferences {
         }
     }
 
+    public var dashboardStyle: DashboardStyle {
+        didSet { defaults.set(dashboardStyle.rawValue, forKey: Key.dashboardStyle) }
+    }
+
     public var hiddenDashboardSections: Set<DashboardSection> {
         didSet { defaults.set(hiddenDashboardSections.map(\.rawValue).sorted(), forKey: Key.hiddenDashboardSections) }
     }
 
-    /// Sections this Mac can't show, such as battery on a desktop. Kept separate from
-    /// `hiddenDashboardSections` so the user's choice survives a move to a Mac with the hardware.
-    public let unavailableDashboardSections: Set<DashboardSection>
-
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// The unavailable modules and sections are ones this Mac can't show, such as battery on a desktop.
+    /// The unavailable modules are ones this Mac can't show, such as battery on a desktop.
     public init(
         defaults: UserDefaults = .standard,
         locale: Locale = .autoupdatingCurrent,
-        unavailableMenuBarModules: Set<MenuBarModule> = [],
-        unavailableDashboardSections: Set<DashboardSection> = []
+        unavailableMenuBarModules: Set<MenuBarModule> = []
     ) {
         self.defaults = defaults
-        self.unavailableDashboardSections = unavailableDashboardSections
         menuBarLayout = defaults.string(forKey: Key.menuBarLayout).flatMap(MenuBarLayout.init(rawValue:)) ?? .individual
         menuBarStyle = defaults.string(forKey: Key.menuBarStyle).flatMap(MenuBarStyle.init(rawValue:)) ?? .graphical
         menuBarModules = MenuBarModuleSelection(
@@ -68,6 +66,7 @@ public final class Preferences {
         temperatureUnit = defaults.string(forKey: Key.temperatureUnit).flatMap(TemperatureUnit.init(rawValue:))
             ?? (locale.measurementSystem == .us ? .fahrenheit : .celsius)
         networkInterface = defaults.string(forKey: Key.networkInterface).map(NetworkInterfaceChoice.named) ?? .automatic
+        dashboardStyle = defaults.string(forKey: Key.dashboardStyle).flatMap(DashboardStyle.init(rawValue:)) ?? .cluster
         hiddenDashboardSections = Set(Self.decode(defaults.stringArray(forKey: Key.hiddenDashboardSections)) ?? [])
     }
 
@@ -84,6 +83,7 @@ public final class Preferences {
         static let refreshInterval = "refreshInterval"
         static let temperatureUnit = "temperatureUnit"
         static let networkInterface = "networkInterface"
+        static let dashboardStyle = "dashboardStyle"
         static let hiddenDashboardSections = "hiddenDashboardSections"
     }
 }
@@ -187,33 +187,46 @@ public enum NetworkInterfaceChoice: Hashable, Sendable {
     }
 }
 
+/// How the dashboard lays out its sections.
+public enum DashboardStyle: String, CaseIterable, Sendable, Identifiable {
+    /// Dials and tiles.
+    case cluster
+    /// One row per section, each with a sparkline.
+    case glance
+
+    public var id: String { rawValue }
+}
+
+/// A part of the dashboard: a row in the glance style, or one or more tiles in the cluster style.
 public enum DashboardSection: String, CaseIterable, Sendable, Identifiable {
-    case battery
     case cpu
-    case cores
     case gpu
     case memory
-    case sensors
     case network
+    /// System power, battery, temperatures, and fans.
+    case power
     case disk
 
     public var id: String { rawValue }
 
-    /// Sections this Mac lacks the hardware for. Hardware doesn't change while running,
-    /// so check once at launch.
-    public static func unavailableOnThisMac() -> Set<DashboardSection> {
-        BatterySampler.isInstalled ? [] : [.battery]
+    /// The row that details a menu bar module.
+    public init(_ module: MenuBarModule) {
+        switch module {
+        case .cpu: self = .cpu
+        case .gpu: self = .gpu
+        case .memory: self = .memory
+        case .network: self = .network
+        case .sensors, .battery: self = .power
+        }
     }
 
     public var name: String {
         switch self {
-        case .battery: "Battery"
         case .cpu: "CPU"
-        case .cores: "Cores"
         case .gpu: "GPU"
         case .memory: "Memory"
-        case .sensors: "Sensors"
         case .network: "Network"
+        case .power: "Power"
         case .disk: "Disk"
         }
     }

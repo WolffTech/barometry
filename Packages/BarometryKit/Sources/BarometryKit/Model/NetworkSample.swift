@@ -15,11 +15,14 @@ public struct NetworkSample: Equatable, Sendable {
     public let interface: String
     public let upload: ByteRate
     public let download: ByteRate
+    /// IPv4 address, or nil when the interface has none.
+    public let address: String?
 
-    public init(interface: String, upload: ByteRate, download: ByteRate) {
+    public init(interface: String, upload: ByteRate, download: ByteRate, address: String? = nil) {
         self.interface = interface
         self.upload = upload
         self.download = download
+        self.address = address
     }
 }
 
@@ -29,7 +32,12 @@ struct NetworkRateTracker {
 
     /// Returns nil for the first reading, and after the primary interface changes,
     /// because counters from different interfaces can't be compared.
-    mutating func update(interface: String, counters: NetworkCounters, at time: ContinuousClock.Instant) -> NetworkSample? {
+    mutating func update(
+        interface: String,
+        counters: NetworkCounters,
+        address: String? = nil,
+        at time: ContinuousClock.Instant
+    ) -> NetworkSample? {
         defer { previous = (interface, counters, time) }
         guard let previous, previous.interface == interface else { return nil }
         let elapsed = (time - previous.time).seconds
@@ -37,7 +45,8 @@ struct NetworkRateTracker {
         return NetworkSample(
             interface: interface,
             upload: ByteRate(bytesPerSecond: Double(counters.sent &- previous.counters.sent) / elapsed),
-            download: ByteRate(bytesPerSecond: Double(counters.received &- previous.counters.received) / elapsed)
+            download: ByteRate(bytesPerSecond: Double(counters.received &- previous.counters.received) / elapsed),
+            address: address
         )
     }
 

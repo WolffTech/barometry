@@ -1,64 +1,61 @@
 import BarometryKit
-import Charts
 import SwiftUI
 
 struct NetworkSection: View {
     let network: NetworkSample?
     let history: History<NetworkSample>
+    /// Display names, such as "Wi-Fi", keyed by BSD name.
+    let interfaceNames: [String: String]
+
+    var body: some View {
+        GlanceRow(section: .network, summary: network.flatMap { summary(interfaceNames[$0.interface], $0.interface) }) {
+            Sparkline(history, color: DashboardSection.network.tint, in: 0...peak) { $0.upload.bytesPerSecond + $0.download.bytesPerSecond }
+        } value: {
+            VStack(alignment: .trailing, spacing: 0) {
+                Text("↑ \(network?.upload.formatted() ?? missingValue)")
+                Text("↓ \(network?.download.formatted() ?? missingValue)")
+            }
+            .font(.caption.weight(.semibold))
+        }
+    }
+
+    /// Largest combined rate in the history, with a floor so idle traffic stays near the baseline.
+    private var peak: Double {
+        max(history.map { $0.upload.bytesPerSecond + $0.download.bytesPerSecond }.max() ?? 0, 1_000)
+    }
+}
+
+struct NetworkDetails: View {
+    let network: NetworkSample?
+    let history: History<NetworkSample>
+    /// Display names, such as "Wi-Fi", keyed by BSD name.
+    let interfaceNames: [String: String]
 
     @State private var hoverSlot: Int?
 
     var body: some View {
+        // While hovering the chart, the legend shows the hovered sample instead of the latest one.
         let shown = hoverSlot.flatMap(history.element(inSlot:)) ?? network
-        DashboardCard {
-            CardHeader(title: "Network", detail: shown?.interface)
-            HStack {
-                rate(shown?.upload, label: "Upload", color: DashboardPalette.secondary)
-                rate(shown?.download, label: "Download", color: DashboardPalette.primary)
+        VStack(alignment: .leading, spacing: 6) {
+            DetailsHeader(
+                section: .network,
+                value: "↓ \(network?.download.formatted() ?? missingValue)",
+                summary: summary(
+                    network.map { "↑ \($0.upload.formatted())" },
+                    network.map { interface in interfaceNames[interface.interface].map { "\($0) (\(interface.interface))" } ?? interface.interface }
+                )
+            )
+            RateChart(network: history, hoverSlot: $hoverSlot)
+                .frame(height: 70)
+                .padding(.vertical, 2)
+            LegendRow(color: DashboardPalette.secondary, label: "Upload", value: shown?.upload.formatted() ?? missingValue)
+            LegendRow(color: DashboardPalette.primary, label: "Download", value: shown?.download.formatted() ?? missingValue)
+            if let peakUpload = history.map(\.upload).max(), let peakDownload = history.map(\.download).max() {
+                DetailRow(label: "Peak", value: "↓ \(peakDownload.formatted()) · ↑ \(peakUpload.formatted())")
             }
-            chart
-        }
-    }
-
-    private func rate(_ rate: ByteRate?, label: String, color: Color) -> some View {
-        VStack(spacing: 2) {
-            Text(rate?.formatted() ?? "—")
-                .font(.title3.weight(.medium).monospacedDigit())
-            HStack(spacing: 6) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 8, height: 8)
-                Text(label)
-                    .font(.callout)
-            }
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    /// Upload grows up from the center line and download grows down, on one shared scale.
-    private var chart: some View {
-        let peak = max(history.map { max($0.upload.bytesPerSecond, $0.download.bytesPerSecond) }.max() ?? 0, 1_000)
-        return Chart {
-            ForEach(history.slotted, id: \.slot) { slot, sample in
-                BarMark(x: .value("Time", slot), y: .value("Rate", sample.upload.bytesPerSecond), width: .fixed(1.5))
-                    .foregroundStyle(DashboardPalette.secondary)
-                BarMark(x: .value("Time", slot), y: .value("Rate", -sample.download.bytesPerSecond), width: .fixed(1.5))
-                    .foregroundStyle(DashboardPalette.primary)
-            }
-            RuleMark(y: .value("Rate", 0))
-                .foregroundStyle(DashboardPalette.track)
-                .lineStyle(StrokeStyle(lineWidth: 1))
-            if let hoverSlot, history.element(inSlot: hoverSlot) != nil {
-                RuleMark(x: .value("Time", hoverSlot))
-                    .foregroundStyle(.secondary)
-                    .lineStyle(StrokeStyle(lineWidth: 1))
+            if let address = network?.address {
+                DetailRow(label: "IP address", value: address)
             }
         }
-        .chartXScale(domain: history.slotDomain)
-        .chartYScale(domain: -peak...peak)
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartHoverSlot($hoverSlot)
-        .frame(height: 40)
     }
 }

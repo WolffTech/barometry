@@ -10,9 +10,9 @@ extension EnvironmentValues {
 /// Series colors, checked for color-blind separation and contrast in light and dark mode.
 /// Every colored mark sits next to a text label, so color never carries meaning alone.
 enum DashboardPalette {
-    /// User CPU, performance cores, download, app memory.
+    /// User CPU, download, app memory.
     static let primary = Color.accentColor
-    /// System CPU, efficiency cores, upload, wired memory.
+    /// System CPU, upload, wired memory.
     static let secondary = Color(red: 0xE0 / 255, green: 0x45 / 255, blue: 0x7B / 255)
     /// Compressed memory.
     static let tertiary = Color(nsColor: NSColor(name: nil) { appearance in
@@ -23,37 +23,212 @@ enum DashboardPalette {
     static let track = Color.secondary.opacity(0.22)
 }
 
-struct DashboardCard<Content: View>: View {
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            content
+extension DashboardSection {
+    var symbol: String {
+        switch self {
+        case .cpu: "cpu"
+        case .gpu: "cube.transparent"
+        case .memory: "memorychip"
+        case .network: "arrow.up.arrow.down"
+        case .power: "bolt.fill"
+        case .disk: "internaldrive"
         }
-        .padding(10)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(.fill.quaternary, in: .rect(cornerRadius: 12))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(.separator)
+    }
+
+    var tint: Color {
+        switch self {
+        case .cpu: .blue
+        case .gpu: .indigo
+        case .memory: .pink
+        case .network: .cyan
+        case .power: .orange
+        case .disk: .gray
         }
     }
 }
 
-struct CardHeader: View {
-    let title: String
-    var detail: String?
+/// White symbol on a tinted rounded square.
+struct IconTile: View {
+    let section: DashboardSection
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title.uppercased())
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-            Spacer()
-            if let detail {
-                Text(detail)
-                    .font(.callout.monospacedDigit())
+        Image(systemName: section.symbol)
+            .font(.system(size: 13, weight: .semibold))
+            .foregroundStyle(.white)
+            .frame(width: 28, height: 28)
+            .background(section.tint.gradient, in: .rect(cornerRadius: 8))
+            .accessibilityHidden(true)
+    }
+}
+
+/// One subsystem at a glance: an icon, a title and summary, a trend, and a headline value.
+struct GlanceRow<Trend: View, Value: View>: View {
+    let section: DashboardSection
+    var title: String?
+    let summary: String?
+    @ViewBuilder let trend: Trend
+    @ViewBuilder let value: Value
+
+    var body: some View {
+        HStack(spacing: 10) {
+            IconTile(section: section)
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title ?? section.name)
+                    .fontWeight(.semibold)
+                if let summary {
+                    Text(summary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
             }
+            .lineLimit(1)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            trend
+                .frame(width: 56, height: 22)
+                .accessibilityHidden(true)
+            value
+                .font(.title3.weight(.semibold))
+                .monospacedDigit()
+                .fixedSize()
+                .frame(minWidth: 44, alignment: .trailing)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .showsDetails(section, cornerRadius: 12)
+    }
+}
+
+/// Top of a details panel: the section's icon, a large value, and a summary below it.
+struct DetailsHeader: View {
+    let section: DashboardSection
+    let value: String
+    let summary: String?
+
+    var body: some View {
+        HStack(spacing: 10) {
+            IconTile(section: section)
+            VStack(alignment: .leading, spacing: 0) {
+                Text(value)
+                    .font(.title.weight(.semibold))
+                    .monospacedDigit()
+                if let summary {
+                    Text(summary)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(section.name)
+    }
+}
+
+/// Small uppercase heading for a group within a details panel.
+struct DetailsHeading: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
+    }
+
+    var body: some View {
+        Text(title.uppercased())
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .padding(.top, 6)
+            .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// Filled line of recent values, newest on the right.
+struct Sparkline: View {
+    /// Samples a row's sparkline shows: few enough that the trend stays legible at its width.
+    static let rowWindow = 30
+
+    private let points: [(slot: Int, value: Double)]
+    private let window: Int
+    private let valueDomain: ClosedRange<Double>
+    private let color: Color
+    private let showsGrid: Bool
+
+    /// Shows the last `window` samples. Values above `valueDomain` are clipped.
+    init<Element>(
+        _ history: History<Element>,
+        color: Color,
+        in valueDomain: ClosedRange<Double> = 0...1,
+        window: Int = rowWindow,
+        showsGrid: Bool = false,
+        value: (Element) -> Double
+    ) {
+        let recent = history.suffix(window)
+        let offset = window - recent.count
+        points = recent.enumerated().map { (offset + $0.offset, value($0.element)) }
+        self.window = window
+        self.valueDomain = valueDomain
+        self.color = color
+        self.showsGrid = showsGrid
+    }
+
+    var body: some View {
+        Chart(points, id: \.slot) { point in
+            AreaMark(x: .value("Time", point.slot), y: .value("Value", point.value))
+                .foregroundStyle(.linearGradient(colors: [color.opacity(0.4), color.opacity(0)], startPoint: .top, endPoint: .bottom))
+            LineMark(x: .value("Time", point.slot), y: .value("Value", point.value))
+                .foregroundStyle(color)
+                .lineStyle(StrokeStyle(lineWidth: 1.5))
+        }
+        .chartXScale(domain: -0.5...(Double(window) - 0.5))
+        .chartYScale(domain: valueDomain)
+        .chartXAxis(.hidden)
+        .chartYAxis {
+            if showsGrid {
+                AxisMarks(values: quarterLines) {
+                    AxisGridLine()
+                }
+            }
+        }
+        .chartLegend(.hidden)
+        .clipped()
+    }
+}
+
+extension Sparkline {
+    /// Grid lines at a quarter, half, and three quarters of the value domain.
+    private var quarterLines: [Double] {
+        [0.25, 0.5, 0.75].map { valueDomain.lowerBound + (valueDomain.upperBound - valueDomain.lowerBound) * $0 }
+    }
+}
+
+/// Secondary label and right-aligned value.
+struct DetailRow: View {
+    let label: String
+    let value: String
+
+    var body: some View {
+        HStack {
+            Text(label)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+            Text(value)
+                .monospacedDigit()
+        }
+        .font(.callout)
+    }
+}
+
+/// Detail row with a bar showing the value's share of its maximum.
+struct MeterRow: View {
+    let label: String
+    let value: String
+    let fraction: Double
+    var color: Color = DashboardPalette.primary
+
+    var body: some View {
+        VStack(spacing: 4) {
+            DetailRow(label: label, value: value)
+            ProgressBar(fraction: fraction, color: color)
         }
     }
 }
@@ -78,88 +253,172 @@ struct LegendRow: View {
     }
 }
 
-/// Circular gauge filled clockwise from 12 o'clock.
-struct Ring<Label: View>: View {
-    let fraction: Double
-    let color: Color
-    var lineWidth: CGFloat = 4
-    @ViewBuilder var label: Label
-
-    var body: some View {
-        SegmentedRing(segments: [(fraction, color)], lineWidth: lineWidth) {
-            label
-        }
-    }
-}
-
-extension Ring where Label == EmptyView {
-    init(fraction: Double, color: Color, lineWidth: CGFloat = 4) {
-        self.init(fraction: fraction, color: color, lineWidth: lineWidth) { EmptyView() }
-    }
-}
-
-/// Circular gauge with consecutive colored segments separated by small gaps.
-struct SegmentedRing<Label: View>: View {
-    /// Fractions of the full circle, in drawing order.
-    let segments: [(fraction: Double, color: Color)]
-    var lineWidth: CGFloat = 4
-    @ViewBuilder var label: Label
-
-    private static var gap: CGFloat { 2 }
-
-    var body: some View {
-        GeometryReader { geometry in
-            let diameter = min(geometry.size.width, geometry.size.height) - lineWidth
-            let gapFraction = segments.count > 1 ? Self.gap / (.pi * max(diameter, 1)) : 0
-            ZStack {
-                Circle()
-                    .stroke(DashboardPalette.track, lineWidth: lineWidth)
-                ForEach(Array(arcs(gapFraction: gapFraction).enumerated()), id: \.offset) { _, arc in
-                    Circle()
-                        .trim(from: arc.start, to: arc.end)
-                        .stroke(arc.color, lineWidth: lineWidth)
-                        .rotationEffect(.degrees(-90))
-                }
-                label
-            }
-            .padding(lineWidth / 2)
-            .frame(width: geometry.size.width, height: geometry.size.height)
-        }
-        .aspectRatio(1, contentMode: .fit)
-    }
-
-    private func arcs(gapFraction: Double) -> [(start: Double, end: Double, color: Color)] {
-        var start = 0.0
-        var arcs: [(start: Double, end: Double, color: Color)] = []
-        for segment in segments {
-            let fraction = min(max(segment.fraction, 0), 1 - start)
-            let end = start + fraction
-            // Segments too small to show past the gap are skipped rather than drawn backwards.
-            if fraction > gapFraction {
-                arcs.append((start, end - gapFraction, segment.color))
-            }
-            start = end
-        }
-        return arcs
-    }
-}
-
 /// Horizontal bar filled from the leading edge.
 struct ProgressBar: View {
     let fraction: Double
     var color: Color = DashboardPalette.primary
 
     var body: some View {
+        SegmentedBar(segments: [(fraction, color)])
+    }
+}
+
+/// Horizontal bar with consecutive colored segments, each a fraction of the full width.
+struct SegmentedBar: View {
+    let segments: [(fraction: Double, color: Color)]
+
+    var body: some View {
         Capsule()
             .fill(DashboardPalette.track)
             .overlay(alignment: .leading) {
                 GeometryReader { geometry in
-                    Capsule()
-                        .fill(color)
-                        .frame(width: geometry.size.width * min(max(fraction, 0), 1))
+                    HStack(spacing: 0) {
+                        ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                            Rectangle()
+                                .fill(segment.color)
+                                .frame(width: geometry.size.width * min(max(segment.fraction, 0), 1))
+                        }
+                    }
                 }
+                .clipShape(.capsule)
             }
             .frame(height: 6)
+    }
+}
+
+/// Two rates on one shared scale, such as upload and download: the upper grows up from the
+/// center line in the secondary color, and the lower grows down in the primary color.
+struct RateChart<Element>: View {
+    let history: History<Element>
+    let upper: (Element) -> ByteRate
+    let lower: (Element) -> ByteRate
+    /// The slot under the pointer, marked with a rule. Without a binding, the chart doesn't track the pointer.
+    var hoverSlot: Binding<Int?>?
+
+    var body: some View {
+        let peak = max(history.map { max(upper($0).bytesPerSecond, lower($0).bytesPerSecond) }.max() ?? 0, 1_000)
+        let chart = Chart {
+            ForEach(history.slotted, id: \.slot) { slot, sample in
+                BarMark(x: .value("Time", slot), y: .value("Rate", upper(sample).bytesPerSecond), width: .fixed(1.5))
+                    .foregroundStyle(DashboardPalette.secondary)
+                BarMark(x: .value("Time", slot), y: .value("Rate", -lower(sample).bytesPerSecond), width: .fixed(1.5))
+                    .foregroundStyle(DashboardPalette.primary)
+            }
+            RuleMark(y: .value("Rate", 0))
+                .foregroundStyle(DashboardPalette.track)
+                .lineStyle(StrokeStyle(lineWidth: 1))
+            if let slot = hoverSlot?.wrappedValue, history.element(inSlot: slot) != nil {
+                RuleMark(x: .value("Time", slot))
+                    .foregroundStyle(.secondary)
+                    .lineStyle(StrokeStyle(lineWidth: 1))
+            }
+        }
+        .chartXScale(domain: history.slotDomain)
+        .chartYScale(domain: -peak...peak)
+        .chartXAxis(.hidden)
+        .chartYAxis(.hidden)
+        if let hoverSlot {
+            chart.chartHoverSlot(hoverSlot)
+        } else {
+            chart
+        }
+    }
+}
+
+extension RateChart where Element == NetworkSample {
+    init(network history: History<NetworkSample>, hoverSlot: Binding<Int?>? = nil) {
+        self.init(history: history, upper: \.upload, lower: \.download, hoverSlot: hoverSlot)
+    }
+}
+
+/// The busiest few processes by one measure, with bars relative to the busiest.
+/// Shows placeholder rows until the first usage arrives, so the details don't jump.
+struct ProcessList: View {
+    let title: String
+    let processes: [ProcessUsage]?
+    let tint: Color
+    let measure: (ProcessUsage) -> Double
+    let value: (ProcessUsage) -> String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            DetailsHeading(title)
+            if let processes {
+                let top = processes.map(measure).max() ?? 0
+                ForEach(processes) { process in
+                    row(name: process.name, fraction: top > 0 ? measure(process) / top : 0, value: value(process))
+                }
+                if processes.isEmpty {
+                    Text("No processes to show")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                ForEach(0..<4, id: \.self) { _ in
+                    row(name: "Process name", fraction: 0, value: "0.0%")
+                }
+                .redacted(reason: .placeholder)
+            }
+            Text("Your processes only")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+        }
+    }
+
+    private func row(name: String, fraction: Double, value: String) -> some View {
+        HStack(spacing: 8) {
+            Text(name)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            ProgressBar(fraction: fraction, color: tint)
+                .frame(width: 60)
+            Text(value)
+                .monospacedDigit()
+                .frame(width: 64, alignment: .trailing)
+        }
+        .font(.callout)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(name)
+        .accessibilityValue(value)
+    }
+}
+
+extension Power {
+    /// Milliwatts below a watt, so idle processes don't all read "0.0 W".
+    var processFormatted: String {
+        watts < 0.995 ? "\((watts * 1000).formatted(.number.precision(.fractionLength(0)))) mW" : formatted()
+    }
+}
+
+extension BatterySample {
+    /// What the battery is doing, such as "6:12 left" or "Charged".
+    var stateDescription: String {
+        switch state {
+        case .charging(let timeToFull):
+            timeToFull.map { "Full in \($0.formatted(.time(pattern: .hourMinute)))" } ?? "Charging"
+        case .charged:
+            "Charged"
+        case .notCharging:
+            "Not charging"
+        case .discharging(let timeRemaining):
+            timeRemaining.map { "\($0.formatted(.time(pattern: .hourMinute))) left" } ?? "On battery"
+        }
+    }
+
+    /// Charge and state, such as "87% · 6:12 left".
+    var chargeSummary: String {
+        "\(charge.formatted()) · \(stateDescription)"
+    }
+}
+
+extension MemoryPressure.Level {
+    var name: String {
+        switch self {
+        case .normal: "Normal"
+        case .warning: "High"
+        case .critical: "Critical"
+        }
     }
 }
 
@@ -204,36 +463,18 @@ extension History {
     }
 }
 
-/// Ring with a caption, a value, and an optional detail line stacked inside.
-struct GaugeRing: View {
-    let fraction: Double
-    var color: Color = DashboardPalette.primary
-    let caption: String
-    let value: String
-    var detail: String?
-
-    var body: some View {
-        Ring(fraction: fraction, color: color, lineWidth: 4) {
-            VStack(spacing: 0) {
-                Text(caption.uppercased())
-                    .font(.system(size: 8, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text(value)
-                    .font(.callout.weight(.medium).monospacedDigit())
-                    .minimumScaleFactor(0.7)
-                if let detail {
-                    Text(detail)
-                        .font(.system(size: 8).monospacedDigit())
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .lineLimit(1)
-            .padding(6)
-        }
-    }
+/// Non-nil parts joined with " · ", or nil if there are none.
+func summary(_ parts: String?...) -> String? {
+    let present = parts.compactMap(\.self)
+    return present.isEmpty ? nil : present.joined(separator: " · ")
 }
 
-/// Fraction of a 0–100 °C scale, for temperature gauges.
-func temperatureFraction(_ temperature: Temperature?) -> Double {
-    (temperature?.celsius ?? 0) / 100
+/// Shown in place of a reading that isn't available.
+let missingValue = "—"
+
+extension ProcessList {
+    static func byCPU(_ processes: TopProcesses?, title: String = "Top processes", tint: Color) -> some View {
+        ProcessList(title: title, processes: processes?.byCPU, tint: tint, measure: \.cpu.cores) { $0.cpu.formatted() }
+            .padding(.top, 4)
+    }
 }

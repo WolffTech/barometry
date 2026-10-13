@@ -13,4 +13,18 @@ enum DiskSampler {
             available: ByteCount(bytes: values.volumeAvailableCapacityForImportantUsage ?? 0)
         )
     }
+
+    /// Mounted local volumes other than the startup disk, such as external drives.
+    static func otherVolumes() -> [DiskSample] {
+        let keys: [URLResourceKey] = [.volumeIsLocalKey, .volumeIsRootFileSystemKey, .volumeIsBrowsableKey]
+        let volumes = FileManager.default.mountedVolumeURLs(includingResourceValuesForKeys: keys, options: [.skipHiddenVolumes]) ?? []
+        return volumes.compactMap { volume in
+            guard let values = try? volume.resourceValues(forKeys: Set(keys)),
+                  values.volumeIsLocal == true,
+                  values.volumeIsRootFileSystem != true,
+                  values.volumeIsBrowsable != false
+            else { return nil }
+            return try? sample(volume: volume)
+        }
+    }
 }
