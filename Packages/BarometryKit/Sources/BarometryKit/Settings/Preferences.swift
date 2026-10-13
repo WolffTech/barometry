@@ -44,13 +44,19 @@ public final class Preferences {
 
     @ObservationIgnored private let defaults: UserDefaults
 
-    public init(defaults: UserDefaults = .standard, locale: Locale = .autoupdatingCurrent) {
+    /// `unavailableMenuBarModules` are ones this Mac can't show, such as battery on a desktop.
+    public init(
+        defaults: UserDefaults = .standard,
+        locale: Locale = .autoupdatingCurrent,
+        unavailableMenuBarModules: Set<MenuBarModule> = []
+    ) {
         self.defaults = defaults
         menuBarLayout = defaults.string(forKey: Key.menuBarLayout).flatMap(MenuBarLayout.init(rawValue:)) ?? .individual
         menuBarStyle = defaults.string(forKey: Key.menuBarStyle).flatMap(MenuBarStyle.init(rawValue:)) ?? .graphical
         menuBarModules = MenuBarModuleSelection(
             order: Self.decode(defaults.stringArray(forKey: Key.menuBarModuleOrder)) ?? MenuBarModule.allCases,
-            hidden: Set(Self.decode(defaults.stringArray(forKey: Key.hiddenMenuBarModules)) ?? [])
+            hidden: Set(Self.decode(defaults.stringArray(forKey: Key.hiddenMenuBarModules)) ?? []),
+            unavailable: unavailableMenuBarModules
         )
         refreshInterval = RefreshInterval(rawValue: defaults.integer(forKey: Key.refreshInterval)) ?? .twoSeconds
         temperatureUnit = defaults.string(forKey: Key.temperatureUnit).flatMap(TemperatureUnit.init(rawValue:))
@@ -80,26 +86,41 @@ public final class Preferences {
 /// there's always an item to click.
 public struct MenuBarModuleSelection: Equatable, Sendable {
     public private(set) var order: [MenuBarModule]
+    /// The user's choice, kept separate from `unavailable` so it survives a move to a Mac
+    /// that has the hardware.
     public private(set) var hidden: Set<MenuBarModule>
+    /// Modules this Mac can't show, such as battery on a desktop. They're never visible.
+    public let unavailable: Set<MenuBarModule>
 
-    public init(order: [MenuBarModule] = MenuBarModule.allCases, hidden: Set<MenuBarModule> = []) {
+    public init(
+        order: [MenuBarModule] = MenuBarModule.allCases,
+        hidden: Set<MenuBarModule> = [],
+        unavailable: Set<MenuBarModule> = []
+    ) {
         // Drop duplicates and append modules missing from a stored order, such as ones
         // added in a later version.
         var seen = Set<MenuBarModule>()
         self.order = (order + MenuBarModule.allCases).filter { seen.insert($0).inserted }
-        self.hidden = hidden.count < MenuBarModule.allCases.count ? hidden : []
+        let unavailable = unavailable.count < MenuBarModule.allCases.count ? unavailable : []
+        self.unavailable = unavailable
+        self.hidden = hidden.union(unavailable).count < MenuBarModule.allCases.count ? hidden : []
     }
 
     public var visible: [MenuBarModule] {
-        order.filter { !hidden.contains($0) }
+        order.filter(isVisible)
     }
 
     public func isVisible(_ module: MenuBarModule) -> Bool {
-        !hidden.contains(module)
+        isAvailable(module) && !hidden.contains(module)
     }
 
-    /// Hiding the last visible module is ignored.
+    public func isAvailable(_ module: MenuBarModule) -> Bool {
+        !unavailable.contains(module)
+    }
+
+    /// Showing an unavailable module and hiding the last visible module are ignored.
     public mutating func setVisible(_ isVisible: Bool, for module: MenuBarModule) {
+        guard isAvailable(module) else { return }
         if isVisible {
             hidden.remove(module)
         } else if visible != [module] {

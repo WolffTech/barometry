@@ -20,6 +20,12 @@ public enum MenuBarModule: String, CaseIterable, Codable, Sendable, Identifiable
         }
     }
 
+    /// Modules this Mac lacks the hardware for. Hardware doesn't change while running,
+    /// so check once at launch.
+    public static func unavailableOnThisMac() -> Set<MenuBarModule> {
+        BatterySampler.isInstalled ? [] : [.battery]
+    }
+
     public var name: String {
         switch self {
         case .cpu: "CPU"

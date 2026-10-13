@@ -104,7 +104,7 @@ struct SettingsView: View {
 
     private func moduleRow(_ module: MenuBarModule) -> some View {
         let selection = preferences.menuBarModules
-        return LabeledContent(module.name) {
+        return LabeledContent {
             HStack(spacing: 12) {
                 // Order only applies to the combined item; individual items are ⌘-dragged.
                 if preferences.menuBarLayout == .combined {
@@ -129,7 +129,13 @@ struct SettingsView: View {
             }
             .buttonStyle(.borderless)
             .labelStyle(.iconOnly)
+        } label: {
+            Text(module.name)
+            if !selection.isAvailable(module) {
+                Text("Not available on this Mac")
+            }
         }
+        .disabled(!selection.isAvailable(module))
     }
 
     private var launchAtLogin: Binding<Bool> {
