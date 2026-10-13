@@ -5,10 +5,7 @@ import BarometryKit
 /// be opened reliably from the dashboard panel, so Barometry manages its own windows.
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
-    private let preferences = Preferences(
-        unavailableMenuBarModules: MenuBarModule.unavailableOnThisMac(),
-        unavailableDashboardSections: DashboardSection.unavailableOnThisMac()
-    )
+    private let preferences = Preferences(unavailableMenuBarModules: MenuBarModule.unavailableOnThisMac())
     private var statusItemController: StatusItemController?
     private lazy var settingsWindow = SettingsWindowController(preferences: preferences)
 

@@ -80,6 +80,8 @@ public final class SystemMonitor {
     public private(set) var cpuHistory = History<CPULoad>(capacity: historyCapacity)
     public private(set) var networkHistory = History<NetworkSample>(capacity: historyCapacity)
     public private(set) var gpuHistory = History<Percent>(capacity: historyCapacity)
+    public private(set) var memoryHistory = History<Percent>(capacity: historyCapacity)
+    public private(set) var powerHistory = History<Power>(capacity: historyCapacity)
 
     /// Time between readings. Changing it while running takes a reading immediately.
     public var interval: Duration {
@@ -135,6 +137,12 @@ public final class SystemMonitor {
         }
         if let gpu = snapshot.gpu {
             gpuHistory.append(gpu.utilization)
+        }
+        if let memory = snapshot.memory {
+            memoryHistory.append(memory.usage)
+        }
+        if let power = snapshot.sensors?.systemPower {
+            powerHistory.append(power)
         }
     }
 }

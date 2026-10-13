@@ -42,21 +42,15 @@ public final class Preferences {
         didSet { defaults.set(hiddenDashboardSections.map(\.rawValue).sorted(), forKey: Key.hiddenDashboardSections) }
     }
 
-    /// Sections this Mac can't show, such as battery on a desktop. Kept separate from
-    /// `hiddenDashboardSections` so the user's choice survives a move to a Mac with the hardware.
-    public let unavailableDashboardSections: Set<DashboardSection>
-
     @ObservationIgnored private let defaults: UserDefaults
 
-    /// The unavailable modules and sections are ones this Mac can't show, such as battery on a desktop.
+    /// The unavailable modules are ones this Mac can't show, such as battery on a desktop.
     public init(
         defaults: UserDefaults = .standard,
         locale: Locale = .autoupdatingCurrent,
-        unavailableMenuBarModules: Set<MenuBarModule> = [],
-        unavailableDashboardSections: Set<DashboardSection> = []
+        unavailableMenuBarModules: Set<MenuBarModule> = []
     ) {
         self.defaults = defaults
-        self.unavailableDashboardSections = unavailableDashboardSections
         menuBarLayout = defaults.string(forKey: Key.menuBarLayout).flatMap(MenuBarLayout.init(rawValue:)) ?? .individual
         menuBarStyle = defaults.string(forKey: Key.menuBarStyle).flatMap(MenuBarStyle.init(rawValue:)) ?? .graphical
         menuBarModules = MenuBarModuleSelection(
@@ -187,33 +181,36 @@ public enum NetworkInterfaceChoice: Hashable, Sendable {
     }
 }
 
+/// A row in the dashboard.
 public enum DashboardSection: String, CaseIterable, Sendable, Identifiable {
-    case battery
     case cpu
-    case cores
     case gpu
     case memory
-    case sensors
     case network
+    /// System power, battery, temperatures, and fans.
+    case power
     case disk
 
     public var id: String { rawValue }
 
-    /// Sections this Mac lacks the hardware for. Hardware doesn't change while running,
-    /// so check once at launch.
-    public static func unavailableOnThisMac() -> Set<DashboardSection> {
-        BatterySampler.isInstalled ? [] : [.battery]
+    /// The row that details a menu bar module.
+    public init(_ module: MenuBarModule) {
+        switch module {
+        case .cpu: self = .cpu
+        case .gpu: self = .gpu
+        case .memory: self = .memory
+        case .network: self = .network
+        case .sensors, .battery: self = .power
+        }
     }
 
     public var name: String {
         switch self {
-        case .battery: "Battery"
         case .cpu: "CPU"
-        case .cores: "Cores"
         case .gpu: "GPU"
         case .memory: "Memory"
-        case .sensors: "Sensors"
         case .network: "Network"
+        case .power: "Power"
         case .disk: "Disk"
         }
     }

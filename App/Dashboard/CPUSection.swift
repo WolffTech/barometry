@@ -1,56 +1,103 @@
 import BarometryKit
-import Charts
 import SwiftUI
 
 struct CPUSection: View {
     let cpu: CPUSample?
     let history: History<CPULoad>
-    let frequency: Frequency?
+    let frequencies: FrequencySample?
     let temperature: Temperature?
+    @Binding var isExpanded: Bool
 
     @Environment(\.temperatureUnit) private var temperatureUnit
-    @State private var hoverSlot: Int?
 
     var body: some View {
-        // While hovering, the legend shows the hovered sample instead of the latest one.
-        let shown = hoverSlot.flatMap(history.element(inSlot:)) ?? cpu?.total
-        DashboardCard {
-            CardHeader(title: "CPU", detail: detail(load: shown))
-            chart
+        GlanceRow(
+            title: "CPU",
+            summary: summary(frequencies?.cpu?.formatted(), temperature?.formatted(in: temperatureUnit)),
+            symbol: "cpu",
+            tint: .blue,
+            isExpanded: $isExpanded
+        ) {
+            Sparkline(history, color: .blue) { $0.total.fraction }
+        } value: {
+            Text(cpu?.total.total.formatted() ?? missingValue)
+        } detail: {
+            if let cpu {
+                detail(cpu)
+            }
+        }
+    }
+
+    private func detail(_ cpu: CPUSample) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            CoreBars(cores: cpu.cores)
             HStack(spacing: 16) {
-                LegendRow(color: DashboardPalette.primary, label: "User", value: shown?.user.formatted() ?? "—")
-                LegendRow(color: DashboardPalette.secondary, label: "System", value: shown?.system.formatted() ?? "—")
+                LegendRow(color: DashboardPalette.primary, label: "User", value: cpu.total.user.formatted())
+                LegendRow(color: DashboardPalette.secondary, label: "System", value: cpu.total.system.formatted())
+            }
+            ForEach([CoreKind.efficiency, .performance], id: \.self) { kind in
+                if let average = cpu.averageLoad(of: kind) {
+                    let count = cpu.cores.count { $0.kind == kind }
+                    DetailRow(
+                        label: "\(kind.name) · \(count)",
+                        value: summary(average.formatted(), frequency(of: kind)?.formatted()) ?? missingValue
+                    )
+                }
             }
         }
     }
 
-    private func detail(load: CPULoad?) -> String {
-        [load?.total.formatted(), frequency?.formatted(), temperature?.formatted(in: temperatureUnit)]
-            .compactMap(\.self)
-            .joined(separator: " · ")
+    private func frequency(of kind: CoreKind) -> Frequency? {
+        kind == .efficiency ? frequencies?.efficiencyCores : frequencies?.performanceCores
     }
+}
 
-    private var chart: some View {
-        Chart {
-            ForEach(history.slotted, id: \.slot) { slot, load in
-                BarMark(x: .value("Time", slot), y: .value("Load", load.user.fraction), width: .fixed(1.5))
-                    .foregroundStyle(by: .value("Kind", "User"))
-                BarMark(x: .value("Time", slot), y: .value("Load", load.system.fraction), width: .fixed(1.5))
-                    .foregroundStyle(by: .value("Kind", "System"))
-            }
-            if let hoverSlot, history.element(inSlot: hoverSlot) != nil {
-                RuleMark(x: .value("Time", hoverSlot))
-                    .foregroundStyle(.secondary)
-                    .lineStyle(StrokeStyle(lineWidth: 1))
+/// One bar per core, user load stacked under system load, with a gap between core kinds.
+private struct CoreBars: View {
+    let cores: [CoreLoad]
+
+    private static let height: CGFloat = 30
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 2) {
+            ForEach(Array(cores.enumerated()), id: \.element.id) { index, core in
+                if index > 0, cores[index - 1].kind != core.kind {
+                    Spacer()
+                        .frame(width: 4)
+                }
+                bar(core)
             }
         }
-        .chartForegroundStyleScale(["User": DashboardPalette.primary, "System": DashboardPalette.secondary])
-        .chartXScale(domain: history.slotDomain)
-        .chartYScale(domain: 0...1)
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
-        .chartLegend(.hidden)
-        .chartHoverSlot($hoverSlot)
-        .frame(height: 48)
+        .frame(height: Self.height)
+    }
+
+    private func bar(_ core: CoreLoad) -> some View {
+        RoundedRectangle(cornerRadius: 2)
+            .fill(DashboardPalette.track)
+            .overlay(alignment: .bottom) {
+                VStack(spacing: 0) {
+                    Rectangle()
+                        .fill(DashboardPalette.secondary)
+                        .frame(height: Self.height * core.load.system.fraction)
+                    Rectangle()
+                        .fill(DashboardPalette.primary)
+                        .frame(height: Self.height * core.load.user.fraction)
+                }
+                .clipShape(.rect(cornerRadius: 2))
+            }
+            .frame(maxWidth: .infinity)
+            .help("Core \(core.id) (\(core.kind.name)): \(core.load.total.formatted())")
+            .accessibilityElement()
+            .accessibilityLabel("Core \(core.id), \(core.kind.name)")
+            .accessibilityValue(core.load.total.formatted())
+    }
+}
+
+private extension CoreKind {
+    var name: String {
+        switch self {
+        case .efficiency: "Efficiency"
+        case .performance: "Performance"
+        }
     }
 }

@@ -124,7 +124,10 @@ final class StatusItemController: NSObject {
         }
     }
 
+    /// An individual module's item opens with its row expanded; the combined item opens collapsed.
     @objc private func togglePanel(_ sender: NSStatusBarButton) {
-        panel.toggle(below: sender)
+        let modules = slots.first { $0.item.button === sender }?.modules ?? []
+        let section = modules.count == 1 ? modules.first.map(DashboardSection.init) : nil
+        panel.toggle(below: sender, expanding: section)
     }
 }

@@ -11,10 +11,21 @@ final class DashboardPanel: NSPanel {
     /// Called with `true` when the panel opens and `false` when it closes.
     var onVisibilityChange: ((Bool) -> Void)?
 
+    /// Where the panel hangs while open: its top edge and horizontal position stay put as
+    /// its height follows the content.
+    private struct Placement {
+        let top: CGFloat
+        let minX: CGFloat
+        let width: CGFloat
+        let maximumHeight: CGFloat
+    }
+
     private let monitor: SystemMonitor
     private let preferences: Preferences
+    private let machine = Machine.current()
     private let openSettings: () -> Void
     private var outsideClickMonitor: Any?
+    private var placement: Placement?
 
     init(monitor: SystemMonitor, preferences: Preferences, openSettings: @escaping () -> Void) {
         self.monitor = monitor
@@ -39,11 +50,12 @@ final class DashboardPanel: NSPanel {
     // Borderless windows refuse key status by default; key status is needed for Esc and ⌘Q.
     override var canBecomeKey: Bool { true }
 
-    func toggle(below button: NSStatusBarButton) {
+    /// Opens with `section` expanded, if given.
+    func toggle(below button: NSStatusBarButton, expanding section: DashboardSection?) {
         if isVisible {
             dismiss()
         } else {
-            show(below: button)
+            show(below: button, expanding: section)
         }
     }
 
@@ -51,28 +63,50 @@ final class DashboardPanel: NSPanel {
         dismiss()
     }
 
-    private func show(below button: NSStatusBarButton) {
+    private func show(below button: NSStatusBarButton, expanding section: DashboardSection?) {
         guard let buttonWindow = button.window, let screen = buttonWindow.screen else { return }
+        let interfaceNames = Dictionary(
+            NetworkInterfaces.available().map { ($0.bsdName, $0.displayName) },
+            uniquingKeysWith: { first, _ in first }
+        )
+        let actions = DashboardView.Actions(
+            openActivityMonitor: { [weak self] in
+                self?.dismiss()
+                Self.openActivityMonitor()
+            },
+            openSettings: { [weak self] in
+                self?.dismiss()
+                self?.openSettings()
+            },
+            contentHeightChanged: { [weak self] height in
+                self?.fit(contentHeight: height)
+            }
+        )
         // Hosted only while open: a hidden hosting view still re-lays out on every reading.
-        let dashboard = DashboardView(monitor: monitor, preferences: preferences) { [weak self] in
-            self?.dismiss()
-            self?.openSettings()
-        }
+        let dashboard = DashboardView(
+            monitor: monitor,
+            preferences: preferences,
+            machine: machine,
+            interfaceNames: interfaceNames,
+            expanded: section,
+            actions: actions
+        )
         let contentView = NSHostingView(rootView: dashboard)
+        let ideal = contentView.fittingSize
+        // The panel sizes itself in `fit(contentHeight:)` so its top edge stays under the menu bar.
+        contentView.sizingOptions = []
         self.contentView = contentView
 
         let anchor = buttonWindow.convertToScreen(button.convert(button.bounds, to: nil))
         let visible = screen.visibleFrame
-        let ideal = contentView.fittingSize
-        // Cap the height to the screen; the dashboard scrolls when capped.
-        let maximumHeight = anchor.minY - Self.gapBelowMenuBar - visible.minY - Self.screenMargin
-        let size = CGSize(width: ideal.width, height: min(ideal.height, maximumHeight))
-        let x = min(
-            max(anchor.midX - size.width / 2, visible.minX + Self.screenMargin),
-            visible.maxX - size.width - Self.screenMargin
+        let top = anchor.minY - Self.gapBelowMenuBar
+        let minX = min(
+            max(anchor.midX - ideal.width / 2, visible.minX + Self.screenMargin),
+            visible.maxX - ideal.width - Self.screenMargin
         )
-        let y = anchor.minY - Self.gapBelowMenuBar - size.height
-        setFrame(NSRect(origin: CGPoint(x: x, y: y), size: size), display: true)
+        // Cap the height to the screen; the dashboard scrolls when capped.
+        placement = Placement(top: top, minX: minX, width: ideal.width, maximumHeight: top - visible.minY - Self.screenMargin)
+        fit(contentHeight: ideal.height)
         makeKeyAndOrderFront(nil)
 
         // Global monitors only see events sent to other apps, so clicks inside the panel
@@ -90,6 +124,29 @@ final class DashboardPanel: NSPanel {
         }
         orderOut(nil)
         contentView = nil
+        placement = nil
         onVisibilityChange?(false)
+    }
+
+    /// Resizes to fit the content, up to the screen height, keeping the top edge in place.
+    private func fit(contentHeight: CGFloat) {
+        guard let placement else { return }
+        let height = min(contentHeight.rounded(.up), placement.maximumHeight)
+        let target = NSRect(x: placement.minX, y: placement.top - height, width: placement.width, height: height)
+        guard target != frame else { return }
+        if isVisible {
+            // Roughly matches the row's expand animation.
+            NSAnimationContext.runAnimationGroup { context in
+                context.duration = 0.25
+                animator().setFrame(target, display: true)
+            }
+        } else {
+            setFrame(target, display: true)
+        }
+    }
+
+    private static func openActivityMonitor() {
+        guard let url = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.apple.ActivityMonitor") else { return }
+        NSWorkspace.shared.openApplication(at: url, configuration: NSWorkspace.OpenConfiguration())
     }
 }
