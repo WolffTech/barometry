@@ -19,4 +19,7 @@ DerivedData/
 .swiftpm/
 xcuserdata/
 
+# Local tools downloaded by Scripts/
+.tools/
+
 .DS_Store
