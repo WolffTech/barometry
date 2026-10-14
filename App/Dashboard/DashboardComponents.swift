@@ -52,14 +52,26 @@ extension DashboardSection {
 
 /// White symbol on a tinted rounded square.
 struct IconTile: View {
-    let section: DashboardSection
+    let symbol: String
+    let tint: Color
+    let size: CGFloat
+
+    init(symbol: String, tint: Color, size: CGFloat = 28) {
+        self.symbol = symbol
+        self.tint = tint
+        self.size = size
+    }
+
+    init(section: DashboardSection, size: CGFloat = 28) {
+        self.init(symbol: section.symbol, tint: section.tint, size: size)
+    }
 
     var body: some View {
-        Image(systemName: section.symbol)
-            .font(.system(size: 13, weight: .semibold))
+        Image(systemName: symbol)
+            .font(.system(size: size * 0.46, weight: .semibold))
             .foregroundStyle(.white)
-            .frame(width: 28, height: 28)
-            .background(section.tint.gradient, in: .rect(cornerRadius: 8))
+            .frame(width: size, height: size)
+            .background(tint.gradient, in: .rect(cornerRadius: size * 0.29))
             .accessibilityHidden(true)
     }
 }

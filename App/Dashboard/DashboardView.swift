@@ -36,8 +36,9 @@ struct DashboardView: View {
         .environment(focus)
     }
 
-    private func shows(_ section: DashboardSection) -> Bool {
-        !preferences.hiddenDashboardSections.contains(section)
+    /// Shown sections in the user's order.
+    private var sections: [DashboardSection] {
+        preferences.dashboardSectionOrder.filter { !preferences.hiddenDashboardSections.contains($0) }
     }
 
     private var content: some View {
@@ -45,10 +46,12 @@ struct DashboardView: View {
             header
             switch preferences.dashboardStyle {
             case .cluster:
-                ClusterDashboard(monitor: monitor, interfaceNames: interfaceNames, shows: shows)
+                ClusterDashboard(monitor: monitor, interfaceNames: interfaceNames, sections: sections)
             case .glance:
                 VStack(spacing: 2) {
-                    rows
+                    ForEach(sections) { section in
+                        row(section)
+                    }
                 }
                 .padding(.horizontal, 6)
                 .padding(.bottom, 6)
@@ -79,42 +82,46 @@ struct DashboardView: View {
         .padding(.bottom, 8)
     }
 
-    @ViewBuilder private var rows: some View {
-        if shows(.cpu) {
+    @ViewBuilder private func row(_ section: DashboardSection) -> some View {
+        switch section {
+        case .cpu:
             CPUSection(
                 cpu: monitor.cpu,
                 history: monitor.cpuHistory,
                 frequencies: monitor.frequencies,
                 temperature: monitor.sensors?.cpuTemperature
             )
-        }
-        if shows(.gpu), let gpu = monitor.gpu {
-            GPUSection(
-                gpu: gpu,
-                history: monitor.gpuHistory,
-                temperature: monitor.sensors?.gpuTemperature,
-                frequency: monitor.frequencies?.gpu
-            )
-        }
-        if shows(.memory), let memory = monitor.memory {
-            MemorySection(memory: memory, history: monitor.memoryHistory)
-        }
-        if shows(.network) {
+        case .gpu:
+            if let gpu = monitor.gpu {
+                GPUSection(
+                    gpu: gpu,
+                    history: monitor.gpuHistory,
+                    temperature: monitor.sensors?.gpuTemperature,
+                    frequency: monitor.frequencies?.gpu
+                )
+            }
+        case .memory:
+            if let memory = monitor.memory {
+                MemorySection(memory: memory, history: monitor.memoryHistory)
+            }
+        case .network:
             NetworkSection(
                 network: monitor.network,
                 history: monitor.networkHistory,
                 interfaceNames: interfaceNames
             )
-        }
-        if shows(.power), monitor.sensors != nil || monitor.battery != nil {
-            PowerSection(
-                sensors: monitor.sensors,
-                battery: monitor.battery,
-                history: monitor.powerHistory
-            )
-        }
-        if shows(.disk), let disk = monitor.disk {
-            DiskSection(disk: disk)
+        case .power:
+            if monitor.sensors != nil || monitor.battery != nil {
+                PowerSection(
+                    sensors: monitor.sensors,
+                    battery: monitor.battery,
+                    history: monitor.powerHistory
+                )
+            }
+        case .disk:
+            if let disk = monitor.disk {
+                DiskSection(disk: disk)
+            }
         }
     }
 

@@ -45,6 +45,12 @@ public final class Preferences {
         didSet { defaults.set(dashboardStyle.rawValue, forKey: Key.dashboardStyle) }
     }
 
+    /// Every dashboard section exactly once, hidden ones included. Change it with
+    /// `moveDashboardSections(fromOffsets:toOffset:)`.
+    public private(set) var dashboardSectionOrder: [DashboardSection] {
+        didSet { defaults.set(dashboardSectionOrder.map(\.rawValue), forKey: Key.dashboardSectionOrder) }
+    }
+
     public var hiddenDashboardSections: Set<DashboardSection> {
         didSet { defaults.set(hiddenDashboardSections.map(\.rawValue).sorted(), forKey: Key.hiddenDashboardSections) }
     }
@@ -79,9 +85,22 @@ public final class Preferences {
             ?? (locale.measurementSystem == .us ? .fahrenheit : .celsius)
         networkInterface = defaults.string(forKey: Key.networkInterface).map(NetworkInterfaceChoice.named) ?? .automatic
         dashboardStyle = defaults.string(forKey: Key.dashboardStyle).flatMap(DashboardStyle.init(rawValue:)) ?? .cluster
+        dashboardSectionOrder = Self.complete(Self.decode(defaults.stringArray(forKey: Key.dashboardSectionOrder)) ?? [])
         hiddenDashboardSections = Set(Self.decode(defaults.stringArray(forKey: Key.hiddenDashboardSections)) ?? [])
         movesCursorWhenIdle = defaults.bool(forKey: Key.movesCursorWhenIdle)
         cursorNudgeInterval = CursorNudgeInterval(rawValue: defaults.integer(forKey: Key.cursorNudgeInterval)) ?? .oneMinute
+    }
+
+    /// Moves sections the way SwiftUI's `onMove` reports a drag.
+    public func moveDashboardSections(fromOffsets source: IndexSet, toOffset destination: Int) {
+        dashboardSectionOrder.move(fromOffsets: source, toOffset: destination)
+    }
+
+    /// Drops duplicates and appends cases missing from a stored order, such as ones added
+    /// in a later version.
+    nonisolated static func complete<Value: CaseIterable & Hashable>(_ order: [Value]) -> [Value] {
+        var seen = Set<Value>()
+        return (order + Value.allCases).filter { seen.insert($0).inserted }
     }
 
     /// Raw values that no longer match a case, such as a removed module, are dropped.
@@ -98,6 +117,7 @@ public final class Preferences {
         static let temperatureUnit = "temperatureUnit"
         static let networkInterface = "networkInterface"
         static let dashboardStyle = "dashboardStyle"
+        static let dashboardSectionOrder = "dashboardSectionOrder"
         static let hiddenDashboardSections = "hiddenDashboardSections"
         static let movesCursorWhenIdle = "movesCursorWhenIdle"
         static let cursorNudgeInterval = "cursorNudgeInterval"
@@ -119,10 +139,7 @@ public struct MenuBarModuleSelection: Equatable, Sendable {
         hidden: Set<MenuBarModule> = [],
         unavailable: Set<MenuBarModule> = []
     ) {
-        // Drop duplicates and append modules missing from a stored order, such as ones
-        // added in a later version.
-        var seen = Set<MenuBarModule>()
-        self.order = (order + MenuBarModule.allCases).filter { seen.insert($0).inserted }
+        self.order = Preferences.complete(order)
         let unavailable = unavailable.count < MenuBarModule.allCases.count ? unavailable : []
         self.unavailable = unavailable
         self.hidden = hidden.union(unavailable).count < MenuBarModule.allCases.count ? hidden : []
@@ -150,12 +167,24 @@ public struct MenuBarModuleSelection: Equatable, Sendable {
         }
     }
 
-    /// Moves a module earlier (negative offset) or later, stopping at either end.
-    public mutating func move(_ module: MenuBarModule, by offset: Int) {
-        guard let index = order.firstIndex(of: module) else { return }
-        let destination = min(max(index + offset, 0), order.count - 1)
-        order.remove(at: index)
-        order.insert(module, at: destination)
+    /// Moves modules the way SwiftUI's `onMove` reports a drag.
+    public mutating func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        order.move(fromOffsets: source, toOffset: destination)
+    }
+}
+
+extension Array {
+    /// Matches SwiftUI's `move(fromOffsets:toOffset:)`, which BarometryKit can't import:
+    /// `destination` is an index in the array before the move. Out-of-range offsets are ignored.
+    mutating func move(fromOffsets source: IndexSet, toOffset destination: Int) {
+        let source = source.filter(indices.contains)
+        guard (0...count).contains(destination) else { return }
+        let moving = source.map { self[$0] }
+        let insertion = destination - source.count(where: { $0 < destination })
+        for index in source.reversed() {
+            remove(at: index)
+        }
+        insert(contentsOf: moving, at: insertion)
     }
 }
 

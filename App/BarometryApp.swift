@@ -11,7 +11,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let preferences = Preferences(unavailableMenuBarModules: MenuBarModule.unavailableOnThisMac())
     private let updates = UpdateController()
     private var statusItemController: StatusItemController?
-    private lazy var settingsWindow = SettingsWindowController(preferences: preferences, updates: updates)
+    private var settingsWindow: SettingsWindowController?
 
     static func main() {
         let application = NSApplication.shared
@@ -24,13 +24,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.mainMenu = makeMainMenu()
-        statusItemController = StatusItemController(preferences: preferences) { [weak self] in
+        let statusItems = StatusItemController(preferences: preferences) { [weak self] in
             self?.openSettings()
         }
+        statusItemController = statusItems
+        settingsWindow = SettingsWindowController(preferences: preferences, updates: updates, statusItems: statusItems)
     }
 
     @objc private func openSettings() {
-        settingsWindow.show()
+        settingsWindow?.show()
     }
 
     /// Never shown (Barometry is a UI element app), but supplies ⌘, ⌘Q, and ⌘W while
