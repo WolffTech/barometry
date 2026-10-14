@@ -12,6 +12,7 @@ struct SettingsView: View {
     @State private var loginItemStatus = SMAppService.mainApp.status
     @State private var loginItemError: String?
     @State private var interfaces = NetworkInterfaces.available()
+    @State private var canNudgeCursor = CursorNudge.isAllowed
 
     var body: some View {
         Form {
@@ -36,14 +37,16 @@ struct SettingsView: View {
                     Toggle(section.name, isOn: dashboardSectionBinding(section))
                 }
             }
+            keepAwakeSection
             updatesSection
         }
         .formStyle(.grouped)
         // Taller than this scrolls, so the window fits a 14" screen.
         .frame(width: 440, height: 640)
-        // Login item approval and network hardware can change while the window is open.
+        // Login item and Accessibility approval and network hardware can change while the window is open.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginItemStatus = SMAppService.mainApp.status
+            canNudgeCursor = CursorNudge.isAllowed
             interfaces = NetworkInterfaces.available()
             updates.refresh()
         }
@@ -81,6 +84,32 @@ struct SettingsView: View {
             Text("General")
         } footer: {
             Text("Barometry refreshes every second while the dashboard is open.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var keepAwakeSection: some View {
+        Section {
+            Toggle("Move cursor when idle", isOn: movesCursorWhenIdle)
+            Picker("After", selection: $preferences.cursorNudgeInterval) {
+                ForEach(CursorNudgeInterval.allCases) { interval in
+                    Text(interval.rawValue < 60 ? "\(interval.rawValue) s" : "\(interval.rawValue / 60) min").tag(interval)
+                }
+            }
+            .pickerStyle(.segmented)
+            .disabled(!preferences.movesCursorWhenIdle)
+            if preferences.movesCursorWhenIdle, !canNudgeCursor {
+                LabeledContent("Allow Barometry in Accessibility to move the cursor.") {
+                    Button("Open Accessibility") {
+                        NSWorkspace.shared.open(URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!)
+                    }
+                }
+                .font(.callout)
+            }
+        } header: {
+            Text("Keep Awake")
+        } footer: {
+            Text("While Keep Awake is on, Barometry moves the cursor a point and back after this long without input, so apps that check for activity still see some.")
                 .foregroundStyle(.secondary)
         }
     }
@@ -184,6 +213,18 @@ struct SettingsView: View {
                 loginItemError = error.localizedDescription
             }
             loginItemStatus = SMAppService.mainApp.status
+        }
+    }
+
+    /// Turning it on asks for Accessibility permission, which macOS needs to post the movement.
+    private var movesCursorWhenIdle: Binding<Bool> {
+        Binding {
+            preferences.movesCursorWhenIdle
+        } set: { isOn in
+            preferences.movesCursorWhenIdle = isOn
+            if isOn {
+                canNudgeCursor = CursorNudge.requestAccess()
+            }
         }
     }
 

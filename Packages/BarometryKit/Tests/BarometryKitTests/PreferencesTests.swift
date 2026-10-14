@@ -28,6 +28,8 @@ struct PreferencesTests {
         preferences.networkInterface = .named("en0")
         preferences.dashboardStyle = .glance
         preferences.hiddenDashboardSections = [.disk]
+        preferences.movesCursorWhenIdle = true
+        preferences.cursorNudgeInterval = .fourMinutes
 
         let reloaded = Preferences(defaults: defaults)
 
@@ -39,6 +41,8 @@ struct PreferencesTests {
         #expect(reloaded.networkInterface == .named("en0"))
         #expect(reloaded.dashboardStyle == .glance)
         #expect(reloaded.hiddenDashboardSections == [.disk])
+        #expect(reloaded.movesCursorWhenIdle)
+        #expect(reloaded.cursorNudgeInterval == .fourMinutes)
     }
 
     @Test func automaticInterfaceClearsTheStoredName() {
@@ -56,6 +60,13 @@ struct PreferencesTests {
 
     @Test func dashboardStyleDefaultsToTheCluster() {
         #expect(Preferences(defaults: defaults).dashboardStyle == .cluster)
+    }
+
+    @Test func cursorNudgingDefaultsToOffWithAOneMinuteInterval() {
+        let preferences = Preferences(defaults: defaults)
+
+        #expect(!preferences.movesCursorWhenIdle)
+        #expect(preferences.cursorNudgeInterval == .oneMinute)
     }
 
     @Test func storedModuleOrderIsRepairedToContainEveryModuleOnce() {

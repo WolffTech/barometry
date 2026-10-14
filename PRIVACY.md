@@ -13,11 +13,18 @@ statistics from macOS, and the names and resource usage of running processes
 for the dashboard's top-process lists. These readings stay in memory for the
 graphs and history and are never written to disk or sent anywhere.
 
+## What the app controls
+
+If you turn on **Move cursor when idle**, Barometry asks for the Accessibility
+permission and uses it only to move the cursor one point and back while Keep
+Awake is on and you've been idle. It doesn't read your keystrokes, mouse
+movements, or screen.
+
 ## What the app stores on your Mac
 
-- Menu bar, dashboard, refresh, temperature unit, and network interface
-  settings, and Sparkle's update settings, in the `tech.wolff.barometry`
-  preferences.
+- Menu bar, dashboard, refresh, temperature unit, network interface, and
+  cursor nudge settings, and Sparkle's update settings, in the
+  `tech.wolff.barometry` preferences.
 - The login item, if you turn on **Launch at login**, registered with macOS.
 
 ## What leaves your Mac
@@ -33,7 +40,8 @@ reporting, and contacts no server of its own.
 
 ## Removing your data
 
-Turn off **Launch at login**, quit Barometry, then delete the app, the
+Turn off **Launch at login**, remove Barometry from **Accessibility** if you
+allowed it, quit Barometry, then delete the app, the
 `~/Library/Caches/tech.wolff.barometry` and
 `~/Library/HTTPStorages/tech.wolff.barometry` folders that Sparkle uses, and
 the `tech.wolff.barometry` preferences:

@@ -73,6 +73,7 @@ final class StatusItemController: NSObject {
             rebuildItems(wanted)
         }
         updateKeepAwakeItem()
+        keepAwake.cursorNudgeInterval = preferences.movesCursorWhenIdle ? preferences.cursorNudgeInterval : nil
         let interface = preferences.networkInterface.bsdName
         if monitor.networkInterface != interface {
             monitor.networkInterface = interface

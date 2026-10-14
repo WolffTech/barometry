@@ -49,6 +49,15 @@ public final class Preferences {
         didSet { defaults.set(hiddenDashboardSections.map(\.rawValue).sorted(), forKey: Key.hiddenDashboardSections) }
     }
 
+    /// Whether Keep Awake also nudges the cursor after `cursorNudgeInterval` of idle input.
+    public var movesCursorWhenIdle: Bool {
+        didSet { defaults.set(movesCursorWhenIdle, forKey: Key.movesCursorWhenIdle) }
+    }
+
+    public var cursorNudgeInterval: CursorNudgeInterval {
+        didSet { defaults.set(cursorNudgeInterval.rawValue, forKey: Key.cursorNudgeInterval) }
+    }
+
     @ObservationIgnored private let defaults: UserDefaults
 
     /// The unavailable modules are ones this Mac can't show, such as battery on a desktop.
@@ -71,6 +80,8 @@ public final class Preferences {
         networkInterface = defaults.string(forKey: Key.networkInterface).map(NetworkInterfaceChoice.named) ?? .automatic
         dashboardStyle = defaults.string(forKey: Key.dashboardStyle).flatMap(DashboardStyle.init(rawValue:)) ?? .cluster
         hiddenDashboardSections = Set(Self.decode(defaults.stringArray(forKey: Key.hiddenDashboardSections)) ?? [])
+        movesCursorWhenIdle = defaults.bool(forKey: Key.movesCursorWhenIdle)
+        cursorNudgeInterval = CursorNudgeInterval(rawValue: defaults.integer(forKey: Key.cursorNudgeInterval)) ?? .oneMinute
     }
 
     /// Raw values that no longer match a case, such as a removed module, are dropped.
@@ -88,6 +99,8 @@ public final class Preferences {
         static let networkInterface = "networkInterface"
         static let dashboardStyle = "dashboardStyle"
         static let hiddenDashboardSections = "hiddenDashboardSections"
+        static let movesCursorWhenIdle = "movesCursorWhenIdle"
+        static let cursorNudgeInterval = "cursorNudgeInterval"
     }
 }
 
@@ -150,6 +163,18 @@ public enum RefreshInterval: Int, CaseIterable, Sendable, Identifiable {
     case oneSecond = 1
     case twoSeconds = 2
     case fiveSeconds = 5
+
+    public var id: Int { rawValue }
+    public var duration: Duration { .seconds(rawValue) }
+}
+
+/// Idle time before Keep Awake nudges the cursor. The longest stays under the five minutes
+/// after which apps such as Microsoft Teams mark someone away.
+public enum CursorNudgeInterval: Int, CaseIterable, Sendable, Identifiable {
+    case thirtySeconds = 30
+    case oneMinute = 60
+    case twoMinutes = 120
+    case fourMinutes = 240
 
     public var id: Int { rawValue }
     public var duration: Duration { .seconds(rawValue) }
