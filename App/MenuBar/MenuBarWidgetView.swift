@@ -12,6 +12,8 @@ private let widgetHeight: CGFloat = 22
 struct MenuBarItemView: View {
     let style: MenuBarStyle
     let widgets: [(module: MenuBarModule, content: MenuBarWidgetContent)]
+    /// Black for the template image; the settings preview draws in the label color instead.
+    var foreground = Color.black
 
     var body: some View {
         HStack(spacing: 10) {
@@ -19,7 +21,7 @@ struct MenuBarItemView: View {
                 MenuBarWidgetView(style: style, module: widget.module, content: widget.content)
             }
         }
-        .foregroundStyle(.black)
+        .foregroundStyle(foreground)
         .frame(height: widgetHeight)
         .padding(.horizontal, 2)
     }

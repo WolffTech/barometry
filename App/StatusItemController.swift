@@ -127,13 +127,32 @@ final class StatusItemController: NSObject {
         return item
     }
 
+    /// What a module's widget shows now. Reads observable state, so a SwiftUI view that
+    /// calls it updates with each reading.
+    func widgetContent(for module: MenuBarModule, style: MenuBarStyle) -> MenuBarWidgetContent {
+        monitor.widgetContent(for: module, style: style, temperatureUnit: preferences.temperatureUnit, isKeepingAwake: keepAwake.isEnabled)
+    }
+
+    /// Modules sorted by where their individual items sit in the menu bar, left to right,
+    /// since ⌘-drags rather than the module order place them. Modules without an item yet
+    /// keep their relative order at the end.
+    func sortedByMenuBarPosition(_ modules: [MenuBarModule]) -> [MenuBarModule] {
+        var positions: [MenuBarModule: CGFloat] = [:]
+        for slot in slots where slot.modules.count == 1 {
+            if let frame = slot.item.button?.window?.frame {
+                positions[slot.modules[0]] = frame.minX
+            }
+        }
+        return modules.enumerated()
+            .sorted { (positions[$0.element] ?? .infinity, $0.offset) < (positions[$1.element] ?? .infinity, $1.offset) }
+            .map(\.element)
+    }
+
     private func renderItems() {
         for index in slots.indices {
             let modules = slots[index].modules
             let style = slots[index].style
-            let content = modules.map {
-                monitor.widgetContent(for: $0, style: style, temperatureUnit: preferences.temperatureUnit, isKeepingAwake: keepAwake.isEnabled)
-            }
+            let content = modules.map { widgetContent(for: $0, style: style) }
             guard content != slots[index].renderedContent, let button = slots[index].item.button else { continue }
 
             let renderer = slots[index].renderer

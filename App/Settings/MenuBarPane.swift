@@ -6,9 +6,13 @@ import SwiftUI
 
 struct MenuBarPane: View {
     @Bindable var preferences: Preferences
+    let statusItems: StatusItemController
 
     var body: some View {
         Form {
+            Section {
+                MenuBarPreview(preferences: preferences, statusItems: statusItems)
+            }
             Section("Layout") {
                 ThumbnailPicker(
                     selection: $preferences.menuBarLayout,

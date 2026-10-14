@@ -9,11 +9,13 @@ import SwiftUI
 final class SettingsWindowController {
     private let preferences: Preferences
     private let updates: UpdateController
+    private let statusItems: StatusItemController
     private var window: NSWindow?
 
-    init(preferences: Preferences, updates: UpdateController) {
+    init(preferences: Preferences, updates: UpdateController, statusItems: StatusItemController) {
         self.preferences = preferences
         self.updates = updates
+        self.statusItems = statusItems
     }
 
     func show() {
@@ -29,7 +31,7 @@ final class SettingsWindowController {
         tabs.tabStyle = .toolbar
         for item in [
             tab("General", symbol: "gearshape", GeneralPane(preferences: preferences)),
-            tab("Menu Bar", symbol: "menubar.rectangle", MenuBarPane(preferences: preferences)),
+            tab("Menu Bar", symbol: "menubar.rectangle", MenuBarPane(preferences: preferences, statusItems: statusItems)),
             tab("Dashboard", symbol: "gauge.with.dots.needle.67percent", DashboardPane(preferences: preferences)),
             tab("Keep Awake", symbol: KeepAwake.systemImage, KeepAwakePane(preferences: preferences)),
             tab("Updates", symbol: "arrow.down.circle", UpdatesPane(updates: updates)),
