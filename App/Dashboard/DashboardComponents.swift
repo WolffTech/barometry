@@ -1,6 +1,5 @@
 import AppKit
 import BarometryKit
-import Charts
 import SwiftUI
 
 extension EnvironmentValues {
@@ -21,6 +20,7 @@ enum DashboardPalette {
             : NSColor(srgbRed: 0xED / 255, green: 0xA1 / 255, blue: 0, alpha: 1)
     })
     static let track = Color.secondary.opacity(0.22)
+    static let grid = Color.secondary.opacity(0.3)
 }
 
 extension DashboardSection {
@@ -172,24 +172,16 @@ struct Sparkline: View {
     }
 
     var body: some View {
-        Chart(points, id: \.slot) { point in
-            AreaMark(x: .value("Time", point.slot), y: .value("Value", point.value))
-                .foregroundStyle(.linearGradient(colors: [color.opacity(0.4), color.opacity(0)], startPoint: .top, endPoint: .bottom))
-            LineMark(x: .value("Time", point.slot), y: .value("Value", point.value))
-                .foregroundStyle(color)
-                .lineStyle(StrokeStyle(lineWidth: 1.5))
-        }
-        .chartXScale(domain: -0.5...(Double(window) - 0.5))
-        .chartYScale(domain: valueDomain)
-        .chartXAxis(.hidden)
-        .chartYAxis {
+        ZStack {
             if showsGrid {
-                AxisMarks(values: quarterLines) {
-                    AxisGridLine()
-                }
+                GridLines(values: quarterLines, domain: valueDomain)
+                    .stroke(DashboardPalette.grid, lineWidth: 1)
             }
+            TrendShape(points: points, slots: window, domain: valueDomain, closed: true)
+                .fill(.linearGradient(colors: [color.opacity(0.4), color.opacity(0)], startPoint: .top, endPoint: .bottom))
+            TrendShape(points: points, slots: window, domain: valueDomain, closed: false)
+                .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
         }
-        .chartLegend(.hidden)
         .clipped()
     }
 }
@@ -198,6 +190,101 @@ extension Sparkline {
     /// Grid lines at a quarter, half, and three quarters of the value domain.
     private var quarterLines: [Double] {
         [0.25, 0.5, 0.75].map { valueDomain.lowerBound + (valueDomain.upperBound - valueDomain.lowerBound) * $0 }
+    }
+}
+
+/// Places history slots and values in a drawing rect: slots are evenly spaced columns,
+/// oldest on the left, and values run up from the bottom of `domain`. Shapes are nonisolated
+/// because SwiftUI may call `Shape.path(in:)` off the main actor.
+nonisolated struct PlotScale {
+    let rect: CGRect
+    let slots: Int
+    let domain: ClosedRange<Double>
+
+    /// The center of `slot`'s column.
+    func x(_ slot: Int) -> CGFloat {
+        rect.minX + (CGFloat(slot) + 0.5) / CGFloat(slots) * rect.width
+    }
+
+    func y(_ value: Double) -> CGFloat {
+        rect.maxY - (value - domain.lowerBound) / (domain.upperBound - domain.lowerBound) * rect.height
+    }
+
+    /// The slot whose column contains `x`, which may fall outside the plot.
+    func slot(atX x: CGFloat) -> Int {
+        Int(((x - rect.minX) / rect.width * CGFloat(slots) - 0.5).rounded())
+    }
+}
+
+/// A line through values, or with `closed`, the area between it and the bottom of the domain.
+nonisolated struct TrendShape: Shape {
+    let points: [(slot: Int, value: Double)]
+    let slots: Int
+    let domain: ClosedRange<Double>
+    let closed: Bool
+
+    func path(in rect: CGRect) -> Path {
+        let scale = PlotScale(rect: rect, slots: slots, domain: domain)
+        var path = Path()
+        guard let first = points.first, let last = points.last else { return path }
+        path.addLines(points.map { CGPoint(x: scale.x($0.slot), y: scale.y($0.value)) })
+        if closed {
+            path.addLine(to: CGPoint(x: scale.x(last.slot), y: rect.maxY))
+            path.addLine(to: CGPoint(x: scale.x(first.slot), y: rect.maxY))
+            path.closeSubpath()
+        }
+        return path
+    }
+}
+
+/// Thin vertical bars, each spanning two values in its slot's column.
+nonisolated struct BarsShape: Shape {
+    static let barWidth: CGFloat = 1.5
+
+    let bars: [(slot: Int, from: Double, to: Double)]
+    let slots: Int
+    let domain: ClosedRange<Double>
+
+    func path(in rect: CGRect) -> Path {
+        let scale = PlotScale(rect: rect, slots: slots, domain: domain)
+        var path = Path()
+        for bar in bars {
+            let from = scale.y(bar.from)
+            let to = scale.y(bar.to)
+            path.addRect(CGRect(x: scale.x(bar.slot) - Self.barWidth / 2, y: min(from, to), width: Self.barWidth, height: abs(to - from)))
+        }
+        return path
+    }
+}
+
+/// Horizontal lines across the plot at the given values.
+nonisolated struct GridLines: Shape {
+    let values: [Double]
+    let domain: ClosedRange<Double>
+
+    func path(in rect: CGRect) -> Path {
+        let scale = PlotScale(rect: rect, slots: 1, domain: domain)
+        var path = Path()
+        for value in values {
+            let y = scale.y(value)
+            path.move(to: CGPoint(x: rect.minX, y: y))
+            path.addLine(to: CGPoint(x: rect.maxX, y: y))
+        }
+        return path
+    }
+}
+
+/// A vertical line down the center of a slot's column.
+nonisolated struct SlotRule: Shape {
+    let slot: Int
+    let slots: Int
+
+    func path(in rect: CGRect) -> Path {
+        let x = PlotScale(rect: rect, slots: slots, domain: 0...1).x(slot)
+        var path = Path()
+        path.move(to: CGPoint(x: x, y: rect.minY))
+        path.addLine(to: CGPoint(x: x, y: rect.maxY))
+        return path
     }
 }
 
@@ -297,28 +384,22 @@ struct RateChart<Element>: View {
 
     var body: some View {
         let peak = max(history.map { max(upper($0).bytesPerSecond, lower($0).bytesPerSecond) }.max() ?? 0, 1_000)
-        let chart = Chart {
-            ForEach(history.slotted, id: \.slot) { slot, sample in
-                BarMark(x: .value("Time", slot), y: .value("Rate", upper(sample).bytesPerSecond), width: .fixed(1.5))
-                    .foregroundStyle(DashboardPalette.secondary)
-                BarMark(x: .value("Time", slot), y: .value("Rate", -lower(sample).bytesPerSecond), width: .fixed(1.5))
-                    .foregroundStyle(DashboardPalette.primary)
-            }
-            RuleMark(y: .value("Rate", 0))
-                .foregroundStyle(DashboardPalette.track)
-                .lineStyle(StrokeStyle(lineWidth: 1))
+        let slotted = history.slotted
+        let domain = -peak...peak
+        let chart = ZStack {
+            BarsShape(bars: slotted.map { ($0.slot, 0, upper($0.element).bytesPerSecond) }, slots: history.capacity, domain: domain)
+                .fill(DashboardPalette.secondary)
+            BarsShape(bars: slotted.map { ($0.slot, -lower($0.element).bytesPerSecond, 0) }, slots: history.capacity, domain: domain)
+                .fill(DashboardPalette.primary)
+            GridLines(values: [0], domain: domain)
+                .stroke(DashboardPalette.track, lineWidth: 1)
             if let slot = hoverSlot?.wrappedValue, history.element(inSlot: slot) != nil {
-                RuleMark(x: .value("Time", slot))
-                    .foregroundStyle(.secondary)
-                    .lineStyle(StrokeStyle(lineWidth: 1))
+                SlotRule(slot: slot, slots: history.capacity)
+                    .stroke(.secondary, lineWidth: 1)
             }
         }
-        .chartXScale(domain: history.slotDomain)
-        .chartYScale(domain: -peak...peak)
-        .chartXAxis(.hidden)
-        .chartYAxis(.hidden)
         if let hoverSlot {
-            chart.chartHoverSlot(hoverSlot)
+            chart.hoverSlot(hoverSlot, slots: history.capacity)
         } else {
             chart
         }
@@ -423,20 +504,20 @@ extension MemoryPressure.Level {
 }
 
 extension View {
-    /// Reports which history slot the pointer is over in a chart whose x values are slot numbers.
-    func chartHoverSlot(_ slot: Binding<Int?>) -> some View {
-        chartOverlay { proxy in
+    /// Reports which history slot the pointer is over in a plot spanning `slots` slots.
+    func hoverSlot(_ slot: Binding<Int?>, slots: Int) -> some View {
+        overlay {
             GeometryReader { geometry in
                 Rectangle()
                     .fill(.clear)
                     .contentShape(Rectangle())
                     .onContinuousHover { phase in
-                        guard case .active(let location) = phase, let plotFrame = proxy.plotFrame else {
+                        guard case .active(let location) = phase else {
                             slot.wrappedValue = nil
                             return
                         }
-                        let x = location.x - geometry[plotFrame].origin.x
-                        slot.wrappedValue = proxy.value(atX: x, as: Double.self).map { Int($0.rounded()) }
+                        slot.wrappedValue = PlotScale(rect: CGRect(origin: .zero, size: geometry.size), slots: slots, domain: 0...1)
+                            .slot(atX: location.x)
                     }
             }
         }
@@ -455,11 +536,6 @@ extension History {
     func element(inSlot slot: Int) -> Element? {
         let index = slot - (capacity - count)
         return indices.contains(index) ? self[index] : nil
-    }
-
-    /// Chart x domain covering every slot.
-    var slotDomain: ClosedRange<Double> {
-        -0.5...(Double(capacity) - 0.5)
     }
 }
 
