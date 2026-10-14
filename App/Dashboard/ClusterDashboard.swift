@@ -5,12 +5,14 @@ import BarometryKit
 import SwiftUI
 
 /// The instrument cluster style: needle dials for CPU, GPU, memory, and power, a network
-/// trace, and small rings for battery and disk.
+/// trace, and small rings for battery and disk. Dials and rings each follow the section
+/// order; the network trace always sits between them.
 struct ClusterDashboard: View {
     let monitor: SystemMonitor
     /// Display names, such as "Wi-Fi", keyed by BSD name.
     let interfaceNames: [String: String]
-    let shows: (DashboardSection) -> Bool
+    /// Shown sections in the user's order.
+    let sections: [DashboardSection]
 
     @Environment(\.temperatureUnit) private var temperatureUnit
 
@@ -19,13 +21,17 @@ struct ClusterDashboard: View {
     var body: some View {
         VStack(spacing: 8) {
             LazyVGrid(columns: columns, spacing: 8) {
-                dials
+                ForEach(sections) { section in
+                    dial(section)
+                }
             }
-            if shows(.network) {
+            if sections.contains(.network) {
                 networkTile
             }
             LazyVGrid(columns: columns, spacing: 8) {
-                rings
+                ForEach(sections) { section in
+                    ring(section)
+                }
             }
         }
         .padding(.horizontal, 12)
@@ -33,8 +39,9 @@ struct ClusterDashboard: View {
         .padding(.bottom, 12)
     }
 
-    @ViewBuilder private var dials: some View {
-        if shows(.cpu) {
+    @ViewBuilder private func dial(_ section: DashboardSection) -> some View {
+        switch section {
+        case .cpu:
             DialTile(
                 title: "CPU",
                 detail: monitor.frequencies?.cpu?.formatted(),
@@ -43,39 +50,44 @@ struct ClusterDashboard: View {
                 tint: DashboardSection.cpu.tint
             )
             .showsDetails(.cpu, cornerRadius: 14)
-        }
-        if shows(.gpu), let gpu = monitor.gpu {
-            DialTile(
-                title: "GPU",
-                detail: monitor.frequencies?.gpu?.formatted(),
-                value: gpu.utilization.formatted(),
-                fraction: gpu.utilization.fraction,
-                tint: DashboardSection.gpu.tint
-            )
-            .showsDetails(.gpu, cornerRadius: 14)
-        }
-        if shows(.memory), let memory = monitor.memory {
-            DialTile(
-                title: "Memory",
-                detail: memory.pressure.level.name,
-                value: memory.used.formattedCompact(),
-                fraction: memory.usage.fraction,
-                tint: DashboardSection.memory.tint
-            )
-            .showsDetails(.memory, cornerRadius: 14)
-        }
-        if shows(.power), let power = monitor.sensors?.systemPower {
-            // Macs draw anywhere from a few watts to well over 100, so the dial spans the
-            // recent peak rather than a fixed range.
-            let peak = max(monitor.powerHistory.map(\.watts).max() ?? 0, 20)
-            DialTile(
-                title: "Power",
-                detail: monitor.sensors?.cpuTemperature?.formatted(in: temperatureUnit),
-                value: power.formatted(),
-                fraction: power.watts / peak,
-                tint: DashboardSection.power.tint
-            )
-            .showsDetails(.power, cornerRadius: 14)
+        case .gpu:
+            if let gpu = monitor.gpu {
+                DialTile(
+                    title: "GPU",
+                    detail: monitor.frequencies?.gpu?.formatted(),
+                    value: gpu.utilization.formatted(),
+                    fraction: gpu.utilization.fraction,
+                    tint: DashboardSection.gpu.tint
+                )
+                .showsDetails(.gpu, cornerRadius: 14)
+            }
+        case .memory:
+            if let memory = monitor.memory {
+                DialTile(
+                    title: "Memory",
+                    detail: memory.pressure.level.name,
+                    value: memory.used.formattedCompact(),
+                    fraction: memory.usage.fraction,
+                    tint: DashboardSection.memory.tint
+                )
+                .showsDetails(.memory, cornerRadius: 14)
+            }
+        case .power:
+            if let power = monitor.sensors?.systemPower {
+                // Macs draw anywhere from a few watts to well over 100, so the dial spans the
+                // recent peak rather than a fixed range.
+                let peak = max(monitor.powerHistory.map(\.watts).max() ?? 0, 20)
+                DialTile(
+                    title: "Power",
+                    detail: monitor.sensors?.cpuTemperature?.formatted(in: temperatureUnit),
+                    value: power.formatted(),
+                    fraction: power.watts / peak,
+                    tint: DashboardSection.power.tint
+                )
+                .showsDetails(.power, cornerRadius: 14)
+            }
+        case .network, .disk:
+            EmptyView()
         }
     }
 
@@ -113,16 +125,22 @@ struct ClusterDashboard: View {
         .accessibilityLabel(label)
     }
 
-    @ViewBuilder private var rings: some View {
-        if shows(.power), let battery = monitor.battery {
-            RingTile(value: battery.charge.formatted(), detail: battery.stateDescription, fraction: battery.charge.fraction, tint: .green)
-                .accessibilityLabel("Battery")
-                .showsDetails(.power, cornerRadius: 14)
-        }
-        if shows(.disk), let disk = monitor.disk {
-            RingTile(value: "\(Self.shortSize(disk.available)) free", detail: disk.name, fraction: disk.usage.fraction, tint: .blue)
-                .accessibilityLabel(disk.name)
-                .showsDetails(.disk, cornerRadius: 14)
+    @ViewBuilder private func ring(_ section: DashboardSection) -> some View {
+        switch section {
+        case .power:
+            if let battery = monitor.battery {
+                RingTile(value: battery.charge.formatted(), detail: battery.stateDescription, fraction: battery.charge.fraction, tint: .green)
+                    .accessibilityLabel("Battery")
+                    .showsDetails(.power, cornerRadius: 14)
+            }
+        case .disk:
+            if let disk = monitor.disk {
+                RingTile(value: "\(Self.shortSize(disk.available)) free", detail: disk.name, fraction: disk.usage.fraction, tint: .blue)
+                    .accessibilityLabel(disk.name)
+                    .showsDetails(.disk, cornerRadius: 14)
+            }
+        case .cpu, .gpu, .memory, .network:
+            EmptyView()
         }
     }
 }

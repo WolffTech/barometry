@@ -169,11 +169,15 @@ struct SettingsView: View {
                 // Order only applies to the combined item; individual items are ⌘-dragged.
                 if preferences.menuBarLayout == .combined {
                     Button("Move Up", systemImage: "chevron.up") {
-                        preferences.menuBarModules.move(module, by: -1)
+                        if let index = selection.order.firstIndex(of: module) {
+                            preferences.menuBarModules.move(fromOffsets: [index], toOffset: index - 1)
+                        }
                     }
                     .disabled(selection.order.first == module)
                     Button("Move Down", systemImage: "chevron.down") {
-                        preferences.menuBarModules.move(module, by: 1)
+                        if let index = selection.order.firstIndex(of: module) {
+                            preferences.menuBarModules.move(fromOffsets: [index], toOffset: index + 2)
+                        }
                     }
                     .disabled(selection.order.last == module)
                 }

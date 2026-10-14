@@ -21,12 +21,13 @@ struct PreferencesTests {
         let preferences = Preferences(defaults: defaults)
         preferences.menuBarLayout = .combined
         preferences.menuBarStyle = .text
-        preferences.menuBarModules.move(.battery, by: -10)
+        preferences.menuBarModules.move(fromOffsets: [5], toOffset: 0)
         preferences.menuBarModules.setVisible(false, for: .gpu)
         preferences.refreshInterval = .fiveSeconds
         preferences.temperatureUnit = .fahrenheit
         preferences.networkInterface = .named("en0")
         preferences.dashboardStyle = .glance
+        preferences.moveDashboardSections(fromOffsets: [5], toOffset: 0)
         preferences.hiddenDashboardSections = [.disk]
         preferences.movesCursorWhenIdle = true
         preferences.cursorNudgeInterval = .fourMinutes
@@ -40,6 +41,7 @@ struct PreferencesTests {
         #expect(reloaded.temperatureUnit == .fahrenheit)
         #expect(reloaded.networkInterface == .named("en0"))
         #expect(reloaded.dashboardStyle == .glance)
+        #expect(reloaded.dashboardSectionOrder == [.disk, .cpu, .gpu, .memory, .network, .power])
         #expect(reloaded.hiddenDashboardSections == [.disk])
         #expect(reloaded.movesCursorWhenIdle)
         #expect(reloaded.cursorNudgeInterval == .fourMinutes)
@@ -75,6 +77,14 @@ struct PreferencesTests {
         let order = Preferences(defaults: defaults).menuBarModules.order
 
         #expect(order == [.battery, .cpu, .gpu, .memory, .network, .sensors])
+    }
+
+    @Test func storedDashboardOrderIsRepairedToContainEverySectionOnce() {
+        defaults.set(["disk", "cpu", "disk", "removed"], forKey: "dashboardSectionOrder")
+
+        let order = Preferences(defaults: defaults).dashboardSectionOrder
+
+        #expect(order == [.disk, .cpu, .gpu, .memory, .network, .power])
     }
 }
 
@@ -113,11 +123,27 @@ struct MenuBarModuleSelectionTests {
         #expect(selection.visible == [.cpu, .gpu, .memory, .network, .sensors])
     }
 
-    @Test func moveStopsAtTheEnds() {
+    // Destinations are indexes before the move, as SwiftUI's onMove reports them.
+    @Test func moveFollowsSwiftUIOffsets() {
         var selection = MenuBarModuleSelection()
-        selection.move(.gpu, by: -5)
-        selection.move(.memory, by: 1)
+        selection.move(fromOffsets: [1], toOffset: 0)
+        selection.move(fromOffsets: [2], toOffset: 4)
 
         #expect(selection.order == [.gpu, .cpu, .network, .memory, .sensors, .battery])
+    }
+
+    @Test func moveOfSeveralKeepsTheirOrder() {
+        var selection = MenuBarModuleSelection()
+        selection.move(fromOffsets: [0, 2], toOffset: 6)
+
+        #expect(selection.order == [.gpu, .network, .sensors, .battery, .cpu, .memory])
+    }
+
+    @Test func moveIgnoresOutOfRangeOffsets() {
+        var selection = MenuBarModuleSelection()
+        selection.move(fromOffsets: [9], toOffset: 0)
+        selection.move(fromOffsets: [0], toOffset: 9)
+
+        #expect(selection.order == MenuBarModule.allCases)
     }
 }
