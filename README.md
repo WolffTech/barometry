@@ -1,3 +1,6 @@
+<!-- SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech> -->
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 <p align="center">
   <img src="Assets/AppIcon.png" width="160" alt="Barometry logo">
 </p>
@@ -22,9 +25,19 @@ Barometry shows CPU, GPU, memory, network, sensor, and battery readings as compa
 - Launch at login
 - Under 1% CPU while idle
 
-## Install
+## Installation
 
 Barometry requires an Apple silicon Mac running macOS 26 or later.
+
+### Homebrew
+
+Install Barometry from the [Wolff.Tech Homebrew tap](https://github.com/WolffTech/homebrew-tap):
+
+```sh
+brew install --cask wolfftech/tap/barometry
+```
+
+### Manual download
 
 1. Download the signed `.dmg` from [GitHub Releases](https://github.com/WolffTech/barometry/releases), or [build from source](#build-from-source).
 2. Open the disk image and drag Barometry to `/Applications`.
@@ -34,7 +47,7 @@ Barometry requires an Apple silicon Mac running macOS 26 or later.
 
 Barometry uses [Sparkle](https://sparkle-project.org) to check GitHub Releases for updates. Choose **Check for Updates…** in **Settings → Updates**, or turn on automatic checks there.
 
-In-app updates work only after you copy Barometry to `/Applications`. macOS translocates apps launched from a disk image or `~/Downloads`, so Sparkle can't update them in place.
+In-app updates work only after you copy Barometry to `/Applications`. macOS translocates apps launched from a disk image or `~/Downloads`, so Sparkle can't update them in place. Homebrew installs update the same way.
 
 ### Getting started
 
@@ -71,6 +84,8 @@ Logic lives in the `BarometryKit` package and is tested with Swift Testing. Run 
 swift test --package-path Packages/BarometryKit
 ```
 
+Forks that distribute their own builds must replace `SUFeedURL` and `SUPublicEDKey` in `App/Info.plist`. Otherwise, those builds will check Barometry's official update feed and trust its release signatures.
+
 ## Releasing
 
 Push a `vX.Y.Z` tag. The [Release workflow](.github/workflows/release.yml) runs the tests, then `Scripts/release.sh` archives Barometry, signs it with Developer ID, notarizes and staples both the app and the disk image, and publishes the DMG, its checksum, and a signed Sparkle `appcast.xml` to a GitHub release. The build number is the commit count at the tag. Publish every tag as a full release, not a pre-release, because the app's update feed reads the latest release.
@@ -82,3 +97,7 @@ To check signing locally without submitting to Apple:
 ```sh
 SKIP_NOTARIZE=1 Scripts/release.sh 1.0.0
 ```
+
+## License
+
+Barometry is free software licensed under [GPL-3.0-only](LICENSE). Third-party attributions are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md), and details about the corresponding source for each release are in [SOURCE.md](SOURCE.md). [PRIVACY.md](PRIVACY.md) describes what Barometry stores and sends, and [SECURITY.md](SECURITY.md) explains how to report a vulnerability.

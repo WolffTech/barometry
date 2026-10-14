@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 public struct MemoryPressure: Equatable, Sendable {
     public enum Level: Sendable {
         case normal

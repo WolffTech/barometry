@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 import Foundation
 
 /// What a menu bar widget draws. Equatable so unchanged widgets can skip re-rendering.

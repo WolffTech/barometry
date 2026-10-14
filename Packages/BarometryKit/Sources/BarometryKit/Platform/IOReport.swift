@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 import Foundation
 
 /// Minimal binding to the private libIOReport, which publishes per-cluster CPU and GPU

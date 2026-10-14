@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+# SPDX-License-Identifier: GPL-3.0-only
+
 # dmgbuild and its two dependencies, pinned by hash for Scripts/build-dmg.sh.
 # Both wheel and sdist hashes are listed so pip can use either.
 dmgbuild==1.6.7 \

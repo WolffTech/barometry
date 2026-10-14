@@ -1,4 +1,6 @@
 #!/usr/bin/env swift
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
 
 // Renders the DMG window background next to this file at 1x and 2x.
 // Geometry matches settings.py: a 640x400 window with the app icon centred

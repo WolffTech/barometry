@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 /// Fixed-capacity buffer of recent samples, ordered oldest to newest.
 /// Appending to a full buffer drops the oldest sample.
 public struct History<Element> {

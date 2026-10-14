@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 /// Cumulative byte counters for one interface. `if_data` reports these as 32-bit
 /// values that wrap after 4 GB.
 public struct NetworkCounters: Equatable, Sendable {

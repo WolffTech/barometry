@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 import Darwin
 
 /// Reads every process the user can see with `proc_pid_rusage`. A full pass takes a few

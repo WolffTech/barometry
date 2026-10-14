@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 import Foundation
 
 /// Processor time as a share of one core, like Activity Monitor's "% CPU". Unlike `Percent`,
