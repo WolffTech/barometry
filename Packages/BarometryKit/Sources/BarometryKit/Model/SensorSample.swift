@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 public struct Fan: Equatable, Sendable, Identifiable {
     public let id: Int
     /// Current speed; Apple Silicon fans stop entirely at low load.

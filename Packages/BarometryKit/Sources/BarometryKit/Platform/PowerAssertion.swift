@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 import IOKit.pwr_mgt
 
 /// A held IOKit power assertion, released when this value is dropped. Noncopyable so it

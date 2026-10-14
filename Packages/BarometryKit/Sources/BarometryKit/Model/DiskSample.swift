@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 public struct DiskSample: Equatable, Sendable {
     /// Volume name, such as "Macintosh HD".
     public let name: String

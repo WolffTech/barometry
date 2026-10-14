@@ -1,4 +1,6 @@
 #!/usr/bin/env bash
+# SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+# SPDX-License-Identifier: GPL-3.0-only
 
 # Packs an app into the styled Barometry disk image: the app beside an
 # Applications link on the background from Scripts/dmg. The image is not

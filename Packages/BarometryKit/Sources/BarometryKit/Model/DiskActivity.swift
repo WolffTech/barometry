@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 /// Bytes read from and written to all disks.
 public struct DiskActivity: Equatable, Sendable {
     public let read: ByteRate

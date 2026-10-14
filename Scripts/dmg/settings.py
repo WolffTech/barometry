@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+# SPDX-License-Identifier: GPL-3.0-only
+
 # dmgbuild layout for the release image. Scripts/build-dmg.sh passes the app
 # and the background with -D app=<path> -D background=<path> (dmgbuild
 # exec's this file without __file__). Icon coordinates are icon centres in

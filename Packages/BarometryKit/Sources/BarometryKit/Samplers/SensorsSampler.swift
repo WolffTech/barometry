@@ -1,3 +1,6 @@
+// SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
+// SPDX-License-Identifier: GPL-3.0-only
+
 /// Reads temperatures, system power, and fans from the SMC.
 struct SensorsSampler {
     /// Each SMC read costs about 0.2 ms and an M3 Pro has ~80 die sensors, so each tick
