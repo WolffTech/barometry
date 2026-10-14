@@ -4,6 +4,7 @@ import SwiftUI
 
 struct SettingsView: View {
     @Bindable var preferences: Preferences
+    @Bindable var updates: UpdateController
 
     @State private var loginItemStatus = SMAppService.mainApp.status
     @State private var loginItemError: String?
@@ -32,6 +33,7 @@ struct SettingsView: View {
                     Toggle(section.name, isOn: dashboardSectionBinding(section))
                 }
             }
+            updatesSection
         }
         .formStyle(.grouped)
         // Taller than this scrolls, so the window fits a 14" screen.
@@ -40,6 +42,7 @@ struct SettingsView: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             loginItemStatus = SMAppService.mainApp.status
             interfaces = NetworkInterfaces.available()
+            updates.refresh()
         }
     }
 
@@ -75,6 +78,26 @@ struct SettingsView: View {
             Text("General")
         } footer: {
             Text("Barometry refreshes every second while the dashboard is open.")
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var updatesSection: some View {
+        Section {
+            LabeledContent("Version", value: "\(updates.version) (\(updates.build))")
+            Toggle("Check for updates automatically", isOn: $updates.automaticallyChecksForUpdates)
+            Toggle("Download updates automatically", isOn: $updates.automaticallyDownloadsUpdates)
+                .disabled(!updates.automaticallyChecksForUpdates)
+            HStack {
+                Link("View Releases on GitHub", destination: URL(string: "https://github.com/WolffTech/barometry/releases")!)
+                Spacer()
+                Button("Check for Updates…") { updates.checkForUpdates() }
+                    .disabled(!updates.canCheckForUpdates)
+            }
+        } header: {
+            Text("Updates")
+        } footer: {
+            Text("Updates are downloaded from GitHub Releases and verified before they're installed.")
                 .foregroundStyle(.secondary)
         }
     }

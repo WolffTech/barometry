@@ -4,10 +4,12 @@ import SwiftUI
 
 final class SettingsWindowController {
     private let preferences: Preferences
+    private let updates: UpdateController
     private var window: NSWindow?
 
-    init(preferences: Preferences) {
+    init(preferences: Preferences, updates: UpdateController) {
         self.preferences = preferences
+        self.updates = updates
     }
 
     func show() {
@@ -19,7 +21,7 @@ final class SettingsWindowController {
     }
 
     private func makeWindow() -> NSWindow {
-        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(preferences: preferences)))
+        let window = NSWindow(contentViewController: NSHostingController(rootView: SettingsView(preferences: preferences, updates: updates)))
         window.title = "Barometry Settings"
         window.styleMask = [.titled, .closable]
         window.isReleasedWhenClosed = false

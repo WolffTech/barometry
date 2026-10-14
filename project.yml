@@ -12,6 +12,11 @@ settings:
 packages:
   BarometryKit:
     path: Packages/BarometryKit
+  # Prebuilt xcframework; Xcode embeds it and the developer-id export re-signs
+  # its nested code (Autoupdate, Updater.app, XPC services) with our team.
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    exactVersion: 2.10.0
 targets:
   Barometry:
     type: application
@@ -19,10 +24,13 @@ targets:
     sources: [App]
     dependencies:
       - package: BarometryKit
+      - package: Sparkle
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: tech.wolff.barometry
         GENERATE_INFOPLIST_FILE: YES
+        # Sparkle's feed and public key, merged into the generated Info.plist.
+        INFOPLIST_FILE: App/Info.plist
         INFOPLIST_KEY_CFBundleDisplayName: Barometry
         INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
         # App/AppIcon.icon, an Icon Composer document.
@@ -34,7 +42,7 @@ targets:
         ENABLE_HARDENED_RUNTIME: YES
         SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
         SWIFT_APPROACHABLE_CONCURRENCY: YES
-        # Ad-hoc signing for local builds; Developer ID comes with distribution.
+        # Ad-hoc signing for local builds; Scripts/release.sh signs with Developer ID.
         CODE_SIGN_STYLE: Manual
         CODE_SIGN_IDENTITY: "-"
     scheme:

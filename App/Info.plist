@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!--
+  Keys Xcode can't generate; GENERATE_INFOPLIST_FILE fills in the rest.
+
+  Sparkle: release.yml attaches appcast.xml to every GitHub release, so every
+  tag must be a full release (no pre-releases) or the latest URL skips it.
+  The key pair was made with Sparkle's generate_keys (keychain account
+  "barometry"); release.yml signs with the private half from the
+  SPARKLE_ED_PRIVATE_KEY secret.
+-->
+<plist version="1.0">
+<dict>
+	<key>SUFeedURL</key>
+	<string>https://github.com/WolffTech/barometry/releases/latest/download/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>OGi6k2GKUCgUiJX19BJ3r/tIUKrBeUMAC/bAGtniM0w=</string>
+</dict>
+</plist>
