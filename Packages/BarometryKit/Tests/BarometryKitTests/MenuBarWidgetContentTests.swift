@@ -103,6 +103,21 @@ struct MenuBarWidgetContentTests {
         #expect(content(.cpu, style: .text, cpuHistory: history) == .readouts([Readout(label: "CPU", value: "22%", widthTemplate: "100%")]))
     }
 
+    @Test func memoryShowsPressureRatherThanUsedMemory() {
+        // 50% of memory used, but only 12% pressure.
+        let memory = MemorySample(
+            total: ByteCount(bytes: 1_000),
+            app: ByteCount(bytes: 500),
+            wired: .zero,
+            compressed: .zero,
+            cached: .zero,
+            pressure: MemoryPressure(level: .normal, percent: Percent(0.12))
+        )
+
+        #expect(content(.memory, memory: memory) == .gauge(0.12))
+        #expect(content(.memory, style: .text, memory: memory) == .readouts([Readout(label: "MEM", value: "12%", widthTemplate: "100%")]))
+    }
+
     @Test func textSensorsSplitIntoTemperatureAndPower() {
         let sensors = SensorSample(cpuTemperature: Temperature(celsius: 50), gpuTemperature: nil, systemPower: Power(watts: 9.41), fans: [])
 

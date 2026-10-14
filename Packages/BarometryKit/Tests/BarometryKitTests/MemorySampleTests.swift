@@ -17,7 +17,6 @@ struct MemorySampleTests {
         #expect(sample.compressed == ByteCount(bytes: 10_000))
         #expect(sample.cached == ByteCount(bytes: 50_000))
         #expect(sample.used == ByteCount(bytes: 130_000))
-        #expect(sample.usage == Percent(0.13))
     }
 
     @Test func clampsAppMemoryWhenPurgeableExceedsInternal() {

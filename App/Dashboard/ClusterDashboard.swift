@@ -66,9 +66,9 @@ struct ClusterDashboard: View {
                 DialTile(
                     title: "Memory",
                     detail: memory.pressure.level.name,
-                    value: memory.used.formattedCompact(),
-                    fraction: memory.usage.fraction,
-                    tint: DashboardSection.memory.tint
+                    value: memory.pressure.percent.formatted(),
+                    fraction: memory.pressure.percent.fraction,
+                    tint: memory.pressure.level.tint
                 )
                 .showsDetails(.memory, cornerRadius: 14)
             }
