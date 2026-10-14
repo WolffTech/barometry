@@ -134,12 +134,34 @@ final class StatusItemController: NSObject {
 
             let renderer = slots[index].renderer
             renderer.content = MenuBarItemView(style: style, widgets: Array(zip(modules, content)))
-            renderer.scale = button.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
-            guard let image = renderer.nsImage else { continue }
-            image.isTemplate = true
+            let scale = button.window?.backingScaleFactor ?? NSScreen.main?.backingScaleFactor ?? 2
+            guard let image = Self.image(from: renderer, scale: scale) else { continue }
             button.image = image
             slots[index].renderedContent = content
         }
+    }
+
+    /// Draws into a CPU bitmap. `ImageRenderer.nsImage` renders on the GPU, which holds
+    /// about 100 MB of graphics memory for a tiny image.
+    private static func image(from renderer: ImageRenderer<MenuBarItemView>, scale: CGFloat) -> NSImage? {
+        var image: NSImage?
+        renderer.render { size, draw in
+            guard let context = CGContext(
+                data: nil,
+                width: Int((size.width * scale).rounded(.up)),
+                height: Int((size.height * scale).rounded(.up)),
+                bitsPerComponent: 8,
+                bytesPerRow: 0,
+                space: CGColorSpace(name: CGColorSpace.sRGB)!,
+                bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+            ) else { return }
+            context.scaleBy(x: scale, y: scale)
+            draw(context)
+            guard let cgImage = context.makeImage() else { return }
+            image = NSImage(cgImage: cgImage, size: size)
+        }
+        image?.isTemplate = true
+        return image
     }
 
     /// An individual module's item opens with its details pinned; the combined item opens without details.
