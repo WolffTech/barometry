@@ -206,6 +206,8 @@ private struct RingTile: View {
 }
 
 /// Barometer-style gauge: a 240° arc filled to `fraction`, with ticks and a needle.
+/// Not animated: SwiftUI re-renders the whole dashboard on every animation frame, which
+/// cost about 20% CPU with a reading every second.
 struct Dial: View {
     let fraction: Double
     let tint: Color
@@ -228,7 +230,6 @@ struct Dial: View {
             }
         }
         .aspectRatio(DialGeometry.width / DialGeometry.height, contentMode: .fit)
-        .animation(.smooth, value: fraction)
     }
 }
 
