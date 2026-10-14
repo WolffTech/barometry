@@ -5,7 +5,8 @@ import IOKit.pwr_mgt
 import Observation
 
 /// Keeps the display, and with it the system, from idle sleep while enabled, like
-/// `caffeinate -d`. Starts disabled each launch.
+/// `caffeinate -d`, and optionally nudges the cursor so apps watching for user activity
+/// see some. Starts disabled each launch.
 @MainActor
 @Observable
 public final class KeepAwake {
@@ -14,7 +15,16 @@ public final class KeepAwake {
 
     public private(set) var isEnabled = false
 
+    /// How long input stays idle before the cursor is nudged while enabled, or nil to leave
+    /// the cursor alone.
+    @ObservationIgnored public var cursorNudgeInterval: CursorNudgeInterval? {
+        didSet {
+            if cursorNudgeInterval != oldValue { updateCursorNudger() }
+        }
+    }
+
     @ObservationIgnored private var assertion: PowerAssertion?
+    @ObservationIgnored private var cursorNudger: CursorNudger?
 
     public init() {}
 
@@ -27,5 +37,14 @@ public final class KeepAwake {
         guard enabled != isEnabled else { return }
         assertion = enabled ? PowerAssertion(type: Self.assertionType, name: Self.assertionName) : nil
         isEnabled = assertion != nil
+        updateCursorNudger()
+    }
+
+    private func updateCursorNudger() {
+        if isEnabled, let interval = cursorNudgeInterval {
+            cursorNudger = CursorNudger(every: interval.duration)
+        } else {
+            cursorNudger = nil
+        }
     }
 }
