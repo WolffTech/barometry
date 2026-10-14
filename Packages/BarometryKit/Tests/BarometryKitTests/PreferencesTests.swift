@@ -55,9 +55,8 @@ struct PreferencesTests {
         #expect(Preferences(defaults: defaults).networkInterface == .automatic)
     }
 
-    @Test(arguments: [("en_US", TemperatureUnit.fahrenheit), ("en_GB", .celsius)])
-    func temperatureUnitDefaultsToTheLocale(identifier: String, expected: TemperatureUnit) {
-        #expect(Preferences(defaults: defaults, locale: Locale(identifier: identifier)).temperatureUnit == expected)
+    @Test func temperatureUnitDefaultsToCelsius() {
+        #expect(Preferences(defaults: defaults).temperatureUnit == .celsius)
     }
 
     @Test func dashboardStyleDefaultsToTheCluster() {

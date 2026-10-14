@@ -69,7 +69,6 @@ public final class Preferences {
     /// The unavailable modules are ones this Mac can't show, such as battery on a desktop.
     public init(
         defaults: UserDefaults = .standard,
-        locale: Locale = .autoupdatingCurrent,
         unavailableMenuBarModules: Set<MenuBarModule> = []
     ) {
         self.defaults = defaults
@@ -81,8 +80,7 @@ public final class Preferences {
             unavailable: unavailableMenuBarModules
         )
         refreshInterval = RefreshInterval(rawValue: defaults.integer(forKey: Key.refreshInterval)) ?? .twoSeconds
-        temperatureUnit = defaults.string(forKey: Key.temperatureUnit).flatMap(TemperatureUnit.init(rawValue:))
-            ?? (locale.measurementSystem == .us ? .fahrenheit : .celsius)
+        temperatureUnit = defaults.string(forKey: Key.temperatureUnit).flatMap(TemperatureUnit.init(rawValue:)) ?? .celsius
         networkInterface = defaults.string(forKey: Key.networkInterface).map(NetworkInterfaceChoice.named) ?? .automatic
         dashboardStyle = defaults.string(forKey: Key.dashboardStyle).flatMap(DashboardStyle.init(rawValue:)) ?? .cluster
         dashboardSectionOrder = Self.complete(Self.decode(defaults.stringArray(forKey: Key.dashboardSectionOrder)) ?? [])
