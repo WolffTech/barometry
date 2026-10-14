@@ -26,7 +26,15 @@ Barometry shows CPU, GPU, memory, network, sensor, and battery readings as compa
 
 Barometry requires an Apple silicon Mac running macOS 26 or later.
 
-There are no releases yet. [Build from source](#build-from-source) to try it.
+1. Download the signed `.dmg` from [GitHub Releases](https://github.com/WolffTech/barometry/releases), or [build from source](#build-from-source).
+2. Open the disk image and drag Barometry to `/Applications`.
+3. Launch Barometry from `/Applications`. It appears in the menu bar.
+
+### Updates
+
+Barometry uses [Sparkle](https://sparkle-project.org) to check GitHub Releases for updates. Choose **Check for Updates…** in **Settings → Updates**, or turn on automatic checks there.
+
+In-app updates work only after you copy Barometry to `/Applications`. macOS translocates apps launched from a disk image or `~/Downloads`, so Sparkle can't update them in place.
 
 ### Getting started
 
@@ -61,4 +69,16 @@ Logic lives in the `BarometryKit` package and is tested with Swift Testing. Run 
 
 ```sh
 swift test --package-path Packages/BarometryKit
+```
+
+## Releasing
+
+Push a `vX.Y.Z` tag. The [Release workflow](.github/workflows/release.yml) runs the tests, then `Scripts/release.sh` archives Barometry, signs it with Developer ID, notarizes and staples both the app and the disk image, and publishes the DMG, its checksum, and a signed Sparkle `appcast.xml` to a GitHub release. The build number is the commit count at the tag. Publish every tag as a full release, not a pre-release, because the app's update feed reads the latest release.
+
+The workflow needs these repository secrets: `MACOS_CERT_P12` and `MACOS_CERT_PASSWORD` (Developer ID Application certificate), `NOTARY_KEY_P8`, `NOTARY_KEY_ID`, and `NOTARY_ISSUER_ID` (App Store Connect API key), and `SPARKLE_ED_PRIVATE_KEY` (exported with Sparkle's `generate_keys --account barometry -x`).
+
+To check signing locally without submitting to Apple:
+
+```sh
+SKIP_NOTARIZE=1 Scripts/release.sh 1.0.0
 ```

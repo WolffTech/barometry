@@ -6,8 +6,9 @@ import BarometryKit
 @main
 final class AppDelegate: NSObject, NSApplicationDelegate {
     private let preferences = Preferences(unavailableMenuBarModules: MenuBarModule.unavailableOnThisMac())
+    private let updates = UpdateController()
     private var statusItemController: StatusItemController?
-    private lazy var settingsWindow = SettingsWindowController(preferences: preferences)
+    private lazy var settingsWindow = SettingsWindowController(preferences: preferences, updates: updates)
 
     static func main() {
         let application = NSApplication.shared
