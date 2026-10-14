@@ -1,5 +1,4 @@
 import BarometryKit
-import Charts
 import SwiftUI
 
 struct CPUSection: View {
@@ -66,24 +65,20 @@ private struct LoadChart: View {
     let history: History<CPULoad>
 
     var body: some View {
-        Chart {
-            ForEach(history.slotted, id: \.slot) { slot, load in
-                BarMark(x: .value("Time", slot), y: .value("Load", load.user.fraction), width: .fixed(1.5))
-                    .foregroundStyle(by: .value("Kind", "User"))
-                BarMark(x: .value("Time", slot), y: .value("Load", load.system.fraction), width: .fixed(1.5))
-                    .foregroundStyle(by: .value("Kind", "System"))
-            }
+        let slotted = history.slotted
+        ZStack {
+            GridLines(values: [0.25, 0.5, 0.75], domain: 0...1)
+                .stroke(DashboardPalette.grid, lineWidth: 1)
+            BarsShape(bars: slotted.map { ($0.slot, 0, $0.element.user.fraction) }, slots: history.capacity, domain: 0...1)
+                .fill(DashboardPalette.primary)
+            BarsShape(
+                bars: slotted.map { ($0.slot, $0.element.user.fraction, $0.element.user.fraction + $0.element.system.fraction) },
+                slots: history.capacity,
+                domain: 0...1
+            )
+            .fill(DashboardPalette.secondary)
         }
-        .chartForegroundStyleScale(["User": DashboardPalette.primary, "System": DashboardPalette.secondary])
-        .chartXScale(domain: history.slotDomain)
-        .chartYScale(domain: 0...1)
-        .chartXAxis(.hidden)
-        .chartYAxis {
-            AxisMarks(values: [0.25, 0.5, 0.75]) {
-                AxisGridLine()
-            }
-        }
-        .chartLegend(.hidden)
+        .clipped()
         .accessibilityHidden(true)
     }
 }
