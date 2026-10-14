@@ -16,9 +16,10 @@ struct MemorySection: View {
                 memory.pressure.level == .normal ? nil : "\(memory.pressure.level.name) pressure"
             )
         ) {
-            Sparkline(history, color: DashboardSection.memory.tint) { $0.fraction }
+            Sparkline(history, color: memory.pressure.level.tint) { $0.fraction }
         } value: {
-            Text(memory.usage.formatted())
+            Text(memory.pressure.percent.formatted())
+                .foregroundStyle(memory.pressure.level.valueStyle)
         }
     }
 }
@@ -32,10 +33,10 @@ struct MemoryDetails: View {
         VStack(alignment: .leading, spacing: 6) {
             DetailsHeader(
                 section: .memory,
-                value: memory.used.formatted(.memory),
-                summary: "of \(memory.total.formatted(.memory)) · \(memory.pressure.level.name) pressure"
+                value: memory.pressure.percent.formatted(),
+                summary: "\(memory.pressure.level.name) pressure"
             )
-            Sparkline(history, color: DashboardSection.memory.tint, window: history.capacity, showsGrid: true) { $0.fraction }
+            Sparkline(history, color: memory.pressure.level.tint, window: history.capacity, showsGrid: true) { $0.fraction }
                 .frame(height: 64)
                 .accessibilityHidden(true)
                 .padding(.bottom, 2)
@@ -49,7 +50,7 @@ struct MemoryDetails: View {
             LegendRow(color: DashboardPalette.secondary, label: "Wired", value: memory.wired.formatted(.memory))
             LegendRow(color: DashboardPalette.tertiary, label: "Compressed", value: memory.compressed.formatted(.memory))
             DetailRow(label: "Cached files", value: memory.cached.formatted(.memory))
-            DetailRow(label: "Pressure", value: "\(memory.pressure.percent.formatted()) · \(memory.pressure.level.name)")
+            DetailRow(label: "Memory used", value: "\(memory.used.formatted(.memory)) of \(memory.total.formatted(.memory))")
             if let swap = memory.swapUsed {
                 DetailRow(label: "Swap used", value: swap.bytes == 0 ? "None" : swap.formatted(.memory))
             }

@@ -51,9 +51,9 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
         case (.gpu, .text):
             return .readouts([percent(gpuHistory.last)])
         case (.memory, .graphical):
-            return .gauge(memory?.usage.fraction ?? 0)
+            return .gauge(memory?.pressure.percent.fraction ?? 0)
         case (.memory, .text):
-            return .readouts([percent(memory?.usage)])
+            return .readouts([percent(memory?.pressure.percent)])
         case (.network, _):
             return .lines(
                 top: network?.upload.formatted(locale: locale) ?? missing,

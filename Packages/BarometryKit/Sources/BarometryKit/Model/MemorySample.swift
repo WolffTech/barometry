@@ -76,10 +76,6 @@ public struct MemorySample: Equatable, Sendable {
         app + wired + compressed
     }
 
-    public var usage: Percent {
-        Percent(Double(used.bytes), of: Double(total.bytes))
-    }
-
     /// Breaks page counts down the same way Activity Monitor does.
     init(pages: VMPageCounts, pageSize: UInt64, total: ByteCount, pressure: MemoryPressure, swapUsed: ByteCount? = nil) {
         func bytes(_ pageCount: UInt64) -> ByteCount {

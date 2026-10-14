@@ -22,6 +22,13 @@ enum DashboardPalette {
             ? NSColor(srgbRed: 0xC9 / 255, green: 0x85 / 255, blue: 0, alpha: 1)
             : NSColor(srgbRed: 0xED / 255, green: 0xA1 / 255, blue: 0, alpha: 1)
     })
+    /// High memory pressure. System yellow is unreadable as text on light backgrounds, so
+    /// light mode uses a darker amber.
+    static let warning = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+            ? .systemYellow
+            : NSColor(srgbRed: 0x9A / 255, green: 0x67 / 255, blue: 0, alpha: 1)
+    })
     static let track = Color.secondary.opacity(0.22)
     static let grid = Color.secondary.opacity(0.3)
 }
@@ -515,6 +522,20 @@ extension MemoryPressure.Level {
         case .warning: "High"
         case .critical: "Critical"
         }
+    }
+
+    /// Normal keeps the section's color; higher levels follow Activity Monitor's yellow and red.
+    var tint: Color {
+        switch self {
+        case .normal: DashboardSection.memory.tint
+        case .warning: DashboardPalette.warning
+        case .critical: .red
+        }
+    }
+
+    /// Headline values stay the primary color until pressure rises.
+    var valueStyle: Color {
+        self == .normal ? .primary : tint
     }
 }
 

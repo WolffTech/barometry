@@ -201,7 +201,7 @@ public final class SystemMonitor {
             gpuHistory.append(gpu.utilization)
         }
         if let memory = snapshot.memory {
-            memoryHistory.append(memory.usage)
+            memoryHistory.append(memory.pressure.percent)
         }
         if let power = snapshot.sensors?.systemPower {
             powerHistory.append(power)
