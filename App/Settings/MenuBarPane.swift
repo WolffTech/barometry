@@ -44,14 +44,14 @@ struct MenuBarPane: View {
                 }) {
                     SettingsRowLabel(
                         title: module.name,
-                        note: selection.isAvailable(module) ? nil : "Not available on this Mac",
+                        note: note(for: module, in: selection),
                         icon: IconTile(symbol: module.symbol, tint: module.tint, size: 22),
                         isMovable: isMovable
                     )
                 }
                 .toggleStyle(.switch)
-                // The last visible module stays so there's always an item to click.
-                .disabled(!selection.isAvailable(module) || selection.visible == [module])
+                // The last module that's always shown stays so there's always an item to click.
+                .disabled(!selection.isAvailable(module) || !selection.canHide(module))
                 .moveDisabled(!isMovable)
                 .contextMenu {
                     if isMovable {
@@ -74,6 +74,16 @@ struct MenuBarPane: View {
                 }
             }
             .foregroundStyle(.secondary)
+        }
+    }
+
+    private func note(for module: MenuBarModule, in selection: MenuBarModuleSelection) -> String? {
+        if !selection.isAvailable(module) {
+            "Not available on this Mac"
+        } else if module.showsOnlyWhileKeepingAwake {
+            "Shown while Keep Awake is on"
+        } else {
+            nil
         }
     }
 }

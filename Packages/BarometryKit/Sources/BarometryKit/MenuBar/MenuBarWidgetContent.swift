@@ -17,6 +17,8 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
     case readouts([Readout])
     /// A battery filled to its charge level, beside the time or state over the charge.
     case battery(BatteryIndicator)
+    /// The Keep Awake cup.
+    case keepAwake
 
     public static let graphBarCount = 20
     static let missing = "—"
@@ -31,12 +33,8 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
         battery: BatterySample?,
         sensors: SensorSample?,
         temperatureUnit: TemperatureUnit,
-        isKeepingAwake: Bool,
         locale: Locale
     ) -> MenuBarWidgetContent {
-        // Keep Awake is marked on the battery, the module most tied to power.
-        let badge: Badge? = isKeepingAwake ? .keepAwake : nil
-
         func percent(_ value: Percent?) -> Readout {
             Readout(label: module.label, value: value?.formatted(locale: locale) ?? missing, widthTemplate: "100%")
         }
@@ -79,13 +77,15 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
                 Readout(label: "PWR", value: power(sensors, locale: locale), widthTemplate: "88.8 W"),
             ])
         case (.battery, .graphical):
-            return .battery(battery.map { BatteryIndicator($0, badge: badge, locale: locale) } ?? .unavailable(badge: badge))
+            return .battery(battery.map { BatteryIndicator($0, locale: locale) } ?? .unavailable)
         case (.battery, .text):
             let charge = battery?.charge.formatted(locale: locale) ?? missing
             let isCharging = if case .charging = battery?.state { true } else { false }
             return .readouts([
-                Readout(label: module.label, value: isCharging ? "⚡︎" + charge : charge, widthTemplate: "⚡︎100%", badge: badge),
+                Readout(label: module.label, value: isCharging ? "⚡︎" + charge : charge, widthTemplate: "⚡︎100%"),
             ])
+        case (.keepAwake, _):
+            return .keepAwake
         }
     }
 
@@ -96,11 +96,6 @@ public enum MenuBarWidgetContent: Equatable, Sendable {
     private static func power(_ sensors: SensorSample?, locale: Locale) -> String {
         sensors?.systemPower?.formatted(locale: locale) ?? "\(missing) W"
     }
-}
-
-/// A symbol drawn beside a widget to show a mode is on.
-public enum Badge: Equatable, Sendable {
-    case keepAwake
 }
 
 public struct LineGlyphs: Equatable, Sendable {
@@ -125,29 +120,24 @@ public struct BatteryIndicator: Equatable, Sendable {
     public let fraction: Double
     public let status: Status
     public let charge: String
-    public let badge: Badge?
 
     /// The widest expected lines, used to reserve width so the item doesn't shift.
     public static let widthTemplate = (status: "8:88", charge: "100%")
 
     /// An empty battery with dashes, for when no reading is available.
-    static func unavailable(badge: Badge?) -> BatteryIndicator {
-        BatteryIndicator(
-            fraction: 0,
-            status: .discharging(timeRemaining: MenuBarWidgetContent.missing),
-            charge: MenuBarWidgetContent.missing,
-            badge: badge
-        )
-    }
+    static let unavailable = BatteryIndicator(
+        fraction: 0,
+        status: .discharging(timeRemaining: MenuBarWidgetContent.missing),
+        charge: MenuBarWidgetContent.missing
+    )
 
-    init(fraction: Double, status: Status, charge: String, badge: Badge? = nil) {
+    init(fraction: Double, status: Status, charge: String) {
         self.fraction = fraction
         self.status = status
         self.charge = charge
-        self.badge = badge
     }
 
-    init(_ sample: BatterySample, badge: Badge? = nil, locale: Locale) {
+    init(_ sample: BatterySample, locale: Locale) {
         // Estimates are nil while macOS is still calculating.
         func clock(_ duration: Duration?) -> String {
             duration.map { $0.formatted(.time(pattern: .hourMinute).locale(locale)) } ?? "–:––"
@@ -158,7 +148,7 @@ public struct BatteryIndicator: Equatable, Sendable {
         case .charged: .charged
         case .notCharging: .paused
         }
-        self.init(fraction: sample.charge.fraction, status: status, charge: sample.charge.formatted(locale: locale), badge: badge)
+        self.init(fraction: sample.charge.fraction, status: status, charge: sample.charge.formatted(locale: locale))
     }
 }
 
@@ -167,14 +157,11 @@ public struct Readout: Equatable, Sendable {
     public let value: String
     /// The widest expected value, used to reserve width so the item doesn't shift.
     public let widthTemplate: String
-    /// Drawn before the label.
-    public let badge: Badge?
 
-    init(label: String, value: String, widthTemplate: String, badge: Badge? = nil) {
+    init(label: String, value: String, widthTemplate: String) {
         self.label = label
         self.value = value
         self.widthTemplate = widthTemplate
-        self.badge = badge
     }
 }
 
@@ -183,7 +170,6 @@ extension SystemMonitor {
         for module: MenuBarModule,
         style: MenuBarStyle,
         temperatureUnit: TemperatureUnit,
-        isKeepingAwake: Bool,
         locale: Locale = .autoupdatingCurrent
     ) -> MenuBarWidgetContent {
         .make(
@@ -196,7 +182,6 @@ extension SystemMonitor {
             battery: battery,
             sensors: sensors,
             temperatureUnit: temperatureUnit,
-            isKeepingAwake: isKeepingAwake,
             locale: locale
         )
     }

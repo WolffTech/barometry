@@ -122,8 +122,8 @@ public final class Preferences {
     }
 }
 
-/// Every menu bar module exactly once, in display order, with at least one visible so
-/// there's always an item to click.
+/// Every menu bar module exactly once, in display order, with at least one visible module
+/// that doesn't depend on Keep Awake, so there's always an item to click.
 public struct MenuBarModuleSelection: Equatable, Sendable {
     public private(set) var order: [MenuBarModule]
     /// The user's choice, kept separate from `unavailable` so it survives a move to a Mac
@@ -138,13 +138,19 @@ public struct MenuBarModuleSelection: Equatable, Sendable {
         unavailable: Set<MenuBarModule> = []
     ) {
         self.order = Preferences.complete(order)
-        let unavailable = unavailable.count < MenuBarModule.allCases.count ? unavailable : []
+        let unavailable = Self.leavesItemToClick(hidden: [], unavailable: unavailable) ? unavailable : []
         self.unavailable = unavailable
-        self.hidden = hidden.union(unavailable).count < MenuBarModule.allCases.count ? hidden : []
+        self.hidden = Self.leavesItemToClick(hidden: hidden, unavailable: unavailable) ? hidden : []
     }
 
+    /// The modules the user chose to show, including Keep Awake whether or not it's on.
     public var visible: [MenuBarModule] {
         order.filter(isVisible)
+    }
+
+    /// The modules in the menu bar right now.
+    public func shown(isKeepingAwake: Bool) -> [MenuBarModule] {
+        visible.filter { isKeepingAwake || !$0.showsOnlyWhileKeepingAwake }
     }
 
     public func isVisible(_ module: MenuBarModule) -> Bool {
@@ -155,13 +161,24 @@ public struct MenuBarModuleSelection: Equatable, Sendable {
         !unavailable.contains(module)
     }
 
-    /// Showing an unavailable module and hiding the last visible module are ignored.
+    /// False for the last visible module that shows regardless of Keep Awake.
+    public func canHide(_ module: MenuBarModule) -> Bool {
+        Self.leavesItemToClick(hidden: hidden.union([module]), unavailable: unavailable)
+    }
+
+    /// Showing an unavailable module and hiding a module that `canHide` refuses are ignored.
     public mutating func setVisible(_ isVisible: Bool, for module: MenuBarModule) {
         guard isAvailable(module) else { return }
         if isVisible {
             hidden.remove(module)
-        } else if visible != [module] {
+        } else if canHide(module) {
             hidden.insert(module)
+        }
+    }
+
+    private static func leavesItemToClick(hidden: Set<MenuBarModule>, unavailable: Set<MenuBarModule>) -> Bool {
+        MenuBarModule.allCases.contains { module in
+            !module.showsOnlyWhileKeepingAwake && !hidden.contains(module) && !unavailable.contains(module)
         }
     }
 
@@ -271,7 +288,7 @@ public enum DashboardSection: String, CaseIterable, Sendable, Identifiable {
         case .gpu: self = .gpu
         case .memory: self = .memory
         case .network: self = .network
-        case .sensors, .battery: self = .power
+        case .sensors, .battery, .keepAwake: self = .power
         }
     }
 

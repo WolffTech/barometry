@@ -8,6 +8,8 @@ public enum MenuBarModule: String, CaseIterable, Codable, Sendable, Identifiable
     case network
     case sensors
     case battery
+    /// The Keep Awake cup, shown only while Keep Awake is on.
+    case keepAwake
 
     public var id: String { rawValue }
 
@@ -20,7 +22,13 @@ public enum MenuBarModule: String, CaseIterable, Codable, Sendable, Identifiable
         case .network: "NET"
         case .sensors: "SEN"
         case .battery: "BAT"
+        case .keepAwake: "AWK"
         }
+    }
+
+    /// Keep Awake comes and goes, so it can't be the one item that's always there to click.
+    public var showsOnlyWhileKeepingAwake: Bool {
+        self == .keepAwake
     }
 
     /// Modules this Mac lacks the hardware for. Hardware doesn't change while running,
@@ -37,6 +45,7 @@ public enum MenuBarModule: String, CaseIterable, Codable, Sendable, Identifiable
         case .network: "Network"
         case .sensors: "Sensors"
         case .battery: "Battery"
+        case .keepAwake: "Keep Awake"
         }
     }
 }

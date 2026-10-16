@@ -16,8 +16,7 @@ struct MenuBarWidgetContentTests {
         network: NetworkSample? = nil,
         battery: BatterySample? = nil,
         sensors: SensorSample? = nil,
-        temperatureUnit: TemperatureUnit = .celsius,
-        isKeepingAwake: Bool = false
+        temperatureUnit: TemperatureUnit = .celsius
     ) -> MenuBarWidgetContent {
         .make(
             module: module,
@@ -29,7 +28,6 @@ struct MenuBarWidgetContentTests {
             battery: battery,
             sensors: sensors,
             temperatureUnit: temperatureUnit,
-            isKeepingAwake: isKeepingAwake,
             locale: locale
         )
     }
@@ -159,27 +157,8 @@ struct MenuBarWidgetContentTests {
         #expect(content(.network, style: .text, network: network) == content(.network, network: network))
     }
 
-    @Test func batteryIsBadgedWhileKeepingAwake() {
-        let battery = BatterySample(charge: Percent(0.44), state: .discharging(timeRemaining: .seconds(142 * 60)))
-
-        #expect(content(.battery, battery: battery, isKeepingAwake: true) == .battery(BatteryIndicator(fraction: 0.44, status: .discharging(timeRemaining: "2:22"), charge: "44%", badge: .keepAwake)))
-    }
-
-    @Test func missingBatteryIsStillBadgedWhileKeepingAwake() {
-        #expect(content(.battery, isKeepingAwake: true) == .battery(BatteryIndicator(fraction: 0, status: .discharging(timeRemaining: "—"), charge: "—", badge: .keepAwake)))
-    }
-
-    @Test func textBatteryIsBadgedWhileKeepingAwake() {
-        let battery = BatterySample(charge: Percent(0.87), state: .notCharging)
-
-        #expect(content(.battery, style: .text, battery: battery, isKeepingAwake: true) == .readouts([
-            Readout(label: "BAT", value: "87%", widthTemplate: "⚡︎100%", badge: .keepAwake),
-        ]))
-    }
-
-    @Test func onlyBatteryIsBadged() {
-        let history = [CPULoad(user: Percent(0.2), system: Percent(0.02))]
-
-        #expect(content(.cpu, style: .text, cpuHistory: history, isKeepingAwake: true) == .readouts([Readout(label: "CPU", value: "22%", widthTemplate: "100%")]))
+    @Test(arguments: MenuBarStyle.allCases)
+    func keepAwakeShowsTheCup(style: MenuBarStyle) {
+        #expect(content(.keepAwake, style: style) == .keepAwake)
     }
 }
