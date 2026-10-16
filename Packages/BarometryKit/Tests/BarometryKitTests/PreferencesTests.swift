@@ -36,7 +36,7 @@ struct PreferencesTests {
 
         #expect(reloaded.menuBarLayout == .combined)
         #expect(reloaded.menuBarStyle == .text)
-        #expect(reloaded.menuBarModules.visible == [.battery, .cpu, .memory, .network, .sensors])
+        #expect(reloaded.menuBarModules.visible == [.battery, .cpu, .memory, .network, .sensors, .keepAwake])
         #expect(reloaded.refreshInterval == .fiveSeconds)
         #expect(reloaded.temperatureUnit == .fahrenheit)
         #expect(reloaded.networkInterface == .named("en0"))
@@ -75,7 +75,7 @@ struct PreferencesTests {
 
         let order = Preferences(defaults: defaults).menuBarModules.order
 
-        #expect(order == [.battery, .cpu, .gpu, .memory, .network, .sensors])
+        #expect(order == [.battery, .cpu, .gpu, .memory, .network, .sensors, .keepAwake])
     }
 
     @Test func storedDashboardOrderIsRepairedToContainEverySectionOnce() {
@@ -89,10 +89,40 @@ struct PreferencesTests {
 
 struct MenuBarModuleSelectionTests {
     @Test func lastVisibleModuleCannotBeHidden() {
-        var selection = MenuBarModuleSelection(hidden: [.gpu, .memory, .network, .sensors, .battery])
+        var selection = MenuBarModuleSelection(hidden: [.gpu, .memory, .network, .sensors, .battery, .keepAwake])
         selection.setVisible(false, for: .cpu)
 
         #expect(selection.visible == [.cpu])
+    }
+
+    // Keep Awake disappears when it's off, which would leave nothing to click.
+    @Test func keepAwakeDoesNotCountAsAnItemToClick() {
+        var selection = MenuBarModuleSelection(hidden: [.gpu, .memory, .network, .sensors, .battery])
+        selection.setVisible(false, for: .cpu)
+
+        #expect(!selection.canHide(.cpu))
+        #expect(selection.canHide(.keepAwake))
+        #expect(selection.visible == [.cpu, .keepAwake])
+    }
+
+    @Test func hidingEveryModuleButKeepAwakeShowsThemAll() {
+        let selection = MenuBarModuleSelection(hidden: [.cpu, .gpu, .memory, .network, .sensors, .battery])
+
+        #expect(selection.visible == MenuBarModule.allCases)
+    }
+
+    @Test func keepAwakeIsShownOnlyWhileOn() {
+        let selection = MenuBarModuleSelection(order: [.keepAwake, .cpu], hidden: [.gpu, .memory, .network, .sensors, .battery])
+
+        #expect(selection.shown(isKeepingAwake: true) == [.keepAwake, .cpu])
+        #expect(selection.shown(isKeepingAwake: false) == [.cpu])
+    }
+
+    @Test func keepAwakeIsShownWhereverItsOrdered() {
+        var selection = MenuBarModuleSelection(unavailable: [.battery])
+        selection.move(fromOffsets: [6], toOffset: 1)
+
+        #expect(selection.shown(isKeepingAwake: true) == [.cpu, .keepAwake, .gpu, .memory, .network, .sensors])
     }
 
     @Test func hidingEveryModuleShowsThemAll() {
@@ -110,7 +140,7 @@ struct MenuBarModuleSelectionTests {
     }
 
     @Test func lastAvailableModuleCannotBeHidden() {
-        var selection = MenuBarModuleSelection(hidden: [.gpu, .memory, .network, .sensors], unavailable: [.battery])
+        var selection = MenuBarModuleSelection(hidden: [.gpu, .memory, .network, .sensors, .keepAwake], unavailable: [.battery])
         selection.setVisible(false, for: .cpu)
 
         #expect(selection.visible == [.cpu])
@@ -119,7 +149,7 @@ struct MenuBarModuleSelectionTests {
     @Test func hidingEveryAvailableModuleShowsThemAll() {
         let selection = MenuBarModuleSelection(hidden: [.cpu, .gpu, .memory, .network, .sensors], unavailable: [.battery])
 
-        #expect(selection.visible == [.cpu, .gpu, .memory, .network, .sensors])
+        #expect(selection.visible == [.cpu, .gpu, .memory, .network, .sensors, .keepAwake])
     }
 
     // Destinations are indexes before the move, as SwiftUI's onMove reports them.
@@ -128,14 +158,14 @@ struct MenuBarModuleSelectionTests {
         selection.move(fromOffsets: [1], toOffset: 0)
         selection.move(fromOffsets: [2], toOffset: 4)
 
-        #expect(selection.order == [.gpu, .cpu, .network, .memory, .sensors, .battery])
+        #expect(selection.order == [.gpu, .cpu, .network, .memory, .sensors, .battery, .keepAwake])
     }
 
     @Test func moveOfSeveralKeepsTheirOrder() {
         var selection = MenuBarModuleSelection()
-        selection.move(fromOffsets: [0, 2], toOffset: 6)
+        selection.move(fromOffsets: [0, 2], toOffset: 7)
 
-        #expect(selection.order == [.gpu, .network, .sensors, .battery, .cpu, .memory])
+        #expect(selection.order == [.gpu, .network, .sensors, .battery, .keepAwake, .cpu, .memory])
     }
 
     @Test func moveIgnoresOutOfRangeOffsets() {

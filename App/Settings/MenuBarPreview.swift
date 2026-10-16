@@ -11,7 +11,7 @@ struct MenuBarPreview: View {
 
     var body: some View {
         let style = preferences.menuBarStyle
-        let visible = preferences.menuBarModules.visible
+        let visible = statusItems.shownModules
         VStack(spacing: 0) {
             HStack(spacing: 4) {
                 switch preferences.menuBarLayout {

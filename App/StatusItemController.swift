@@ -41,8 +41,6 @@ final class StatusItemController: NSObject {
     private let panel: DashboardPanel
     private var slots: [Slot] = []
     private var itemLayout: ItemLayout?
-    /// Shows Keep Awake when no battery widget is visible to carry its badge.
-    private var keepAwakeItem: NSStatusItem?
 
     init(preferences: Preferences, openSettings: @escaping () -> Void) {
         self.preferences = preferences
@@ -68,11 +66,10 @@ final class StatusItemController: NSObject {
     }
 
     private func applyPreferences() {
-        let wanted = ItemLayout(layout: preferences.menuBarLayout, style: preferences.menuBarStyle, modules: preferences.menuBarModules.visible)
+        let wanted = ItemLayout(layout: preferences.menuBarLayout, style: preferences.menuBarStyle, modules: shownModules)
         if wanted != itemLayout {
             rebuildItems(wanted)
         }
-        updateKeepAwakeItem()
         keepAwake.cursorNudgeInterval = preferences.movesCursorWhenIdle ? preferences.cursorNudgeInterval : nil
         let interface = preferences.networkInterface.bsdName
         if monitor.networkInterface != interface {
@@ -85,33 +82,27 @@ final class StatusItemController: NSObject {
     }
 
     private func rebuildItems(_ itemLayout: ItemLayout) {
-        // Removed items keep their autosaved positions, so rebuilding doesn't undo ⌘-drags.
-        for slot in slots {
-            NSStatusBar.system.removeStatusItem(slot.item)
-        }
         self.itemLayout = itemLayout
         let modules = itemLayout.modules
-        switch itemLayout.layout {
+        let wanted: [(autosaveName: String, accessibilityLabel: String, modules: [MenuBarModule])] = switch itemLayout.layout {
         case .individual:
             // New status items appear to the left of existing ones, so create them in
             // reverse to get the modules in order. The autosave name keeps ⌘-drag positions.
-            slots = modules.reversed().map { module in
-                Slot(item: makeItem(autosaveName: "barometry.\(module.rawValue)", accessibilityLabel: module.name), style: itemLayout.style, modules: [module])
-            }
+            modules.reversed().map { ("barometry.\($0.rawValue)", $0.name, [$0]) }
         case .combined:
-            slots = [Slot(item: makeItem(autosaveName: "barometry.combined", accessibilityLabel: "Barometry"), style: itemLayout.style, modules: modules)]
+            [("barometry.combined", "Barometry", modules)]
         }
-    }
-
-    private func updateKeepAwakeItem() {
-        let isWanted = keepAwake.isEnabled && !preferences.menuBarModules.visible.contains(.battery)
-        if isWanted, keepAwakeItem == nil {
-            let item = makeItem(autosaveName: "barometry.keepAwake", accessibilityLabel: "Keep Awake")
-            item.button?.image = NSImage(systemSymbolName: KeepAwake.systemImage, accessibilityDescription: nil)
-            keepAwakeItem = item
-        } else if !isWanted, let item = keepAwakeItem {
+        // Items still wanted stay put, so Keep Awake coming and going doesn't recreate the rest.
+        // Removed items keep their autosaved positions, so rebuilding doesn't undo ⌘-drags.
+        var unused = Dictionary(uniqueKeysWithValues: slots.compactMap { slot in slot.item.autosaveName.map { ($0, slot.item) } })
+        slots = wanted.map { wanted in
+            let item = unused.removeValue(forKey: wanted.autosaveName)
+                ?? makeItem(autosaveName: wanted.autosaveName, accessibilityLabel: wanted.accessibilityLabel)
+            // A new slot starts without rendered content, so a style change redraws the item.
+            return Slot(item: item, style: itemLayout.style, modules: wanted.modules)
+        }
+        for item in unused.values {
             NSStatusBar.system.removeStatusItem(item)
-            keepAwakeItem = nil
         }
     }
 
@@ -130,7 +121,13 @@ final class StatusItemController: NSObject {
     /// What a module's widget shows now. Reads observable state, so a SwiftUI view that
     /// calls it updates with each reading.
     func widgetContent(for module: MenuBarModule, style: MenuBarStyle) -> MenuBarWidgetContent {
-        monitor.widgetContent(for: module, style: style, temperatureUnit: preferences.temperatureUnit, isKeepingAwake: keepAwake.isEnabled)
+        monitor.widgetContent(for: module, style: style, temperatureUnit: preferences.temperatureUnit)
+    }
+
+    /// The modules in the menu bar now, which include Keep Awake only while it's on.
+    /// Reads observable state, like `widgetContent`.
+    var shownModules: [MenuBarModule] {
+        preferences.menuBarModules.shown(isKeepingAwake: keepAwake.isEnabled)
     }
 
     /// Modules sorted by where their individual items sit in the menu bar, left to right,
@@ -188,14 +185,13 @@ final class StatusItemController: NSObject {
     }
 
     /// An individual module's item opens with its details pinned; the combined item opens without details.
-    /// ⌥-clicking an item that shows Keep Awake toggles it instead.
+    /// ⌥-clicking any item toggles Keep Awake instead.
     @objc private func togglePanel(_ sender: NSStatusBarButton) {
-        let modules = slots.first { $0.item.button === sender }?.modules ?? []
-        if NSApp.currentEvent?.modifierFlags.contains(.option) == true,
-           modules.contains(.battery) || sender === keepAwakeItem?.button {
+        if NSApp.currentEvent?.modifierFlags.contains(.option) == true {
             keepAwake.toggle()
             return
         }
+        let modules = slots.first { $0.item.button === sender }?.modules ?? []
         let section = modules.count == 1 ? modules.first.map(DashboardSection.init) : nil
         panel.toggle(below: sender, showing: section)
     }

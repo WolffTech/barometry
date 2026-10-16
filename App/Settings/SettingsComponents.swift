@@ -97,6 +97,7 @@ extension MenuBarModule {
         switch self {
         case .sensors: "thermometer.medium"
         case .battery: "battery.75percent"
+        case .keepAwake: KeepAwake.systemImage
         default: DashboardSection(self).symbol
         }
     }

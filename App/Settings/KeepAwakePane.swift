@@ -29,7 +29,7 @@ struct KeepAwakePane: View {
                     .font(.callout)
                 }
             } footer: {
-                Text("Turn on Keep Awake with the cup in the dashboard, or ⌥-click the battery item. While it's on, Barometry moves the cursor a point and back after this long without input, so apps that check for activity still see some.")
+                Text("Turn on Keep Awake with the cup in the dashboard, or ⌥-click any Barometry item in the menu bar. While it's on, Barometry moves the cursor a point and back after this long without input, so apps that check for activity still see some.")
                     .foregroundStyle(.secondary)
             }
         }
