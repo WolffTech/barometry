@@ -54,7 +54,7 @@ In-app updates work only after you copy Barometry to `/Applications`. macOS tran
 
 Barometry lives in the menu bar and has no Dock icon. Click a menu bar item to open the dashboard, and hover or click a section to see its details. Choose **Settings…** (⌘,) to pick modules, the layout, and the refresh interval. Quit from the dashboard or with ⌘Q.
 
-Turn on Keep Awake with the cup button in the dashboard's footer, or ⌥-click the battery item. It stays on until you turn it off or quit Barometry.
+Turn on Keep Awake with the cup button in the dashboard's footer, or ⌥-click any Barometry item in the menu bar. It stays on until you turn it off or quit Barometry.
 
 To have Keep Awake also nudge the cursor when you're idle, turn on **Move cursor when idle** in **Settings → Keep Awake** and allow Barometry in **System Settings → Privacy & Security → Accessibility**, which macOS requires to move the cursor.
 

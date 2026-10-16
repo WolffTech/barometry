@@ -185,14 +185,13 @@ final class StatusItemController: NSObject {
     }
 
     /// An individual module's item opens with its details pinned; the combined item opens without details.
-    /// ⌥-clicking an item with the battery or the Keep Awake cup toggles Keep Awake instead.
+    /// ⌥-clicking any item toggles Keep Awake instead.
     @objc private func togglePanel(_ sender: NSStatusBarButton) {
-        let modules = slots.first { $0.item.button === sender }?.modules ?? []
-        if NSApp.currentEvent?.modifierFlags.contains(.option) == true,
-           modules.contains(.battery) || modules.contains(.keepAwake) {
+        if NSApp.currentEvent?.modifierFlags.contains(.option) == true {
             keepAwake.toggle()
             return
         }
+        let modules = slots.first { $0.item.button === sender }?.modules ?? []
         let section = modules.count == 1 ? modules.first.map(DashboardSection.init) : nil
         panel.toggle(below: sender, showing: section)
     }
