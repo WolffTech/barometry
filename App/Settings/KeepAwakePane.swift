@@ -32,11 +32,37 @@ struct KeepAwakePane: View {
                 Text("Turn on Keep Awake with the cup in the dashboard, or ⌥-click any Barometry item in the menu bar. While it's on, Barometry moves the cursor a point and back after this long without input, so apps that check for activity still see some.")
                     .foregroundStyle(.secondary)
             }
+            // The battery module is unavailable exactly when this Mac has no battery.
+            if preferences.menuBarModules.isAvailable(.battery) {
+                Section {
+                    Toggle("Turn off on low battery", isOn: $preferences.keepAwakeStopsOnLowBattery)
+                    LabeledContent("Battery at or below") {
+                        HStack {
+                            Text("\(preferences.lowBatteryCutoff.percent)%")
+                                .monospacedDigit()
+                            Stepper("Battery at or below", value: lowBatteryCutoffPercent, in: LowBatteryCutoff.range, step: 5)
+                                .labelsHidden()
+                        }
+                    }
+                    .disabled(!preferences.keepAwakeStopsOnLowBattery)
+                } footer: {
+                    Text("While on battery power, Keep Awake turns off at this charge and stays off until you plug in.")
+                        .foregroundStyle(.secondary)
+                }
+            }
         }
         .settingsPane()
         // Accessibility approval can change while the window is open.
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             canNudgeCursor = CursorNudge.isAllowed
+        }
+    }
+
+    private var lowBatteryCutoffPercent: Binding<Int> {
+        Binding {
+            preferences.lowBatteryCutoff.percent
+        } set: { percent in
+            preferences.lowBatteryCutoff = LowBatteryCutoff(percent: percent)
         }
     }
 

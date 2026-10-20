@@ -31,6 +31,8 @@ struct PreferencesTests {
         preferences.hiddenDashboardSections = [.disk]
         preferences.movesCursorWhenIdle = true
         preferences.cursorNudgeInterval = .fourMinutes
+        preferences.keepAwakeStopsOnLowBattery = false
+        preferences.lowBatteryCutoff = LowBatteryCutoff(percent: 35)
 
         let reloaded = Preferences(defaults: defaults)
 
@@ -45,6 +47,8 @@ struct PreferencesTests {
         #expect(reloaded.hiddenDashboardSections == [.disk])
         #expect(reloaded.movesCursorWhenIdle)
         #expect(reloaded.cursorNudgeInterval == .fourMinutes)
+        #expect(!reloaded.keepAwakeStopsOnLowBattery)
+        #expect(reloaded.lowBatteryCutoff.percent == 35)
     }
 
     @Test func automaticInterfaceClearsTheStoredName() {
@@ -68,6 +72,13 @@ struct PreferencesTests {
 
         #expect(!preferences.movesCursorWhenIdle)
         #expect(preferences.cursorNudgeInterval == .oneMinute)
+    }
+
+    @Test func lowBatteryCutoffDefaultsToOnAtTwentyPercent() {
+        let preferences = Preferences(defaults: defaults)
+
+        #expect(preferences.keepAwakeStopsOnLowBattery)
+        #expect(preferences.lowBatteryCutoff.percent == 20)
     }
 
     @Test func storedModuleOrderIsRepairedToContainEveryModuleOnce() {

@@ -23,6 +23,7 @@ Barometry shows CPU, GPU, memory, network, sensor, and battery readings as compa
 - A refresh interval of 1, 2, or 5 seconds, with 1-second updates while the dashboard is open
 - Keep Awake, which stops idle sleep and keeps the display on, marked with a cup on the battery in the menu bar
 - Optionally, while Keep Awake is on, an imperceptible cursor nudge after 30 seconds to 4 minutes without input, so apps that check for activity still see some
+- Keep Awake turns off on battery power at a low-charge cutoff, 20% by default
 - Launch at login
 - Under 1% CPU while idle
 
@@ -54,7 +55,7 @@ In-app updates work only after you copy Barometry to `/Applications`. macOS tran
 
 Barometry lives in the menu bar and has no Dock icon. Click a menu bar item to open the dashboard, and hover or click a section to see its details. Choose **Settings…** (⌘,) to pick modules, the layout, and the refresh interval. Quit from the dashboard or with ⌘Q.
 
-Turn on Keep Awake with the cup button in the dashboard's footer, or ⌥-click any Barometry item in the menu bar. It stays on until you turn it off or quit Barometry.
+Turn on Keep Awake with the cup button in the dashboard's footer, or ⌥-click any Barometry item in the menu bar. It stays on until you turn it off or quit Barometry, or until a MacBook on battery power drops to 20%. Change or turn off that cutoff under **Turn off on low battery** in **Settings → Keep Awake**. At or below the cutoff, Keep Awake can't be turned on again until you plug in.
 
 To have Keep Awake also nudge the cursor when you're idle, turn on **Move cursor when idle** in **Settings → Keep Awake** and allow Barometry in **System Settings → Privacy & Security → Accessibility**, which macOS requires to move the cursor.
 

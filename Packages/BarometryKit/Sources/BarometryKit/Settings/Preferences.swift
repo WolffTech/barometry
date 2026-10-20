@@ -64,6 +64,15 @@ public final class Preferences {
         didSet { defaults.set(cursorNudgeInterval.rawValue, forKey: Key.cursorNudgeInterval) }
     }
 
+    /// Whether Keep Awake turns off at `lowBatteryCutoff` while on battery power.
+    public var keepAwakeStopsOnLowBattery: Bool {
+        didSet { defaults.set(keepAwakeStopsOnLowBattery, forKey: Key.keepAwakeStopsOnLowBattery) }
+    }
+
+    public var lowBatteryCutoff: LowBatteryCutoff {
+        didSet { defaults.set(lowBatteryCutoff.percent, forKey: Key.lowBatteryCutoff) }
+    }
+
     @ObservationIgnored private let defaults: UserDefaults
 
     /// The unavailable modules are ones this Mac can't show, such as battery on a desktop.
@@ -87,6 +96,8 @@ public final class Preferences {
         hiddenDashboardSections = Set(Self.decode(defaults.stringArray(forKey: Key.hiddenDashboardSections)) ?? [])
         movesCursorWhenIdle = defaults.bool(forKey: Key.movesCursorWhenIdle)
         cursorNudgeInterval = CursorNudgeInterval(rawValue: defaults.integer(forKey: Key.cursorNudgeInterval)) ?? .oneMinute
+        keepAwakeStopsOnLowBattery = defaults.object(forKey: Key.keepAwakeStopsOnLowBattery) as? Bool ?? true
+        lowBatteryCutoff = (defaults.object(forKey: Key.lowBatteryCutoff) as? Int).map(LowBatteryCutoff.init(percent:)) ?? .default
     }
 
     /// Moves sections the way SwiftUI's `onMove` reports a drag.
@@ -119,6 +130,8 @@ public final class Preferences {
         static let hiddenDashboardSections = "hiddenDashboardSections"
         static let movesCursorWhenIdle = "movesCursorWhenIdle"
         static let cursorNudgeInterval = "cursorNudgeInterval"
+        static let keepAwakeStopsOnLowBattery = "keepAwakeStopsOnLowBattery"
+        static let lowBatteryCutoff = "lowBatteryCutoff"
     }
 }
 
