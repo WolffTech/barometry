@@ -66,6 +66,9 @@ final class StatusItemController: NSObject {
     }
 
     private func applyPreferences() {
+        // Before reading `shownModules`, so a cutoff that turns Keep Awake off removes its item now.
+        keepAwake.lowBatteryCutoff = preferences.keepAwakeStopsOnLowBattery ? preferences.lowBatteryCutoff : nil
+        keepAwake.battery = monitor.battery
         let wanted = ItemLayout(layout: preferences.menuBarLayout, style: preferences.menuBarStyle, modules: shownModules)
         if wanted != itemLayout {
             rebuildItems(wanted)

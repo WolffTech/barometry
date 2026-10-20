@@ -125,6 +125,14 @@ struct DashboardView: View {
         }
     }
 
+    private var keepAwakeHelp: String {
+        if keepAwake.isBlockedByLowBattery, let cutoff = keepAwake.lowBatteryCutoff {
+            "Keep Awake is off at \(cutoff.percent)% battery or below until you plug in"
+        } else {
+            keepAwake.isEnabled ? "Keep Awake is on" : "Keep Awake"
+        }
+    }
+
     private var footer: some View {
         HStack(spacing: 4) {
             Button("Activity Monitor", action: actions.openActivityMonitor)
@@ -135,7 +143,8 @@ struct DashboardView: View {
             .toggleStyle(.button)
             .labelStyle(.iconOnly)
             .foregroundStyle(keepAwake.isEnabled ? AnyShapeStyle(DashboardSection.power.tint) : AnyShapeStyle(.secondary))
-            .help(keepAwake.isEnabled ? "Keep Awake is on" : "Keep Awake")
+            .disabled(keepAwake.isBlockedByLowBattery)
+            .help(keepAwakeHelp)
             Spacer()
             Button("Settings…", action: actions.openSettings)
                 .keyboardShortcut(",")
