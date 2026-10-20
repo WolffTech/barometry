@@ -36,8 +36,13 @@ struct KeepAwakePane: View {
             if preferences.menuBarModules.isAvailable(.battery) {
                 Section {
                     Toggle("Turn off on low battery", isOn: $preferences.keepAwakeStopsOnLowBattery)
-                    Stepper(value: lowBatteryCutoffPercent, in: LowBatteryCutoff.range, step: 5) {
-                        LabeledContent("At or below", value: "\(preferences.lowBatteryCutoff.percent)%")
+                    LabeledContent("Battery at or below") {
+                        HStack {
+                            Text("\(preferences.lowBatteryCutoff.percent)%")
+                                .monospacedDigit()
+                            Stepper("Battery at or below", value: lowBatteryCutoffPercent, in: LowBatteryCutoff.range, step: 5)
+                                .labelsHidden()
+                        }
                     }
                     .disabled(!preferences.keepAwakeStopsOnLowBattery)
                 } footer: {
