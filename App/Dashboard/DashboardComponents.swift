@@ -478,6 +478,7 @@ struct ProcessList: View {
                 .frame(width: 60)
             Text(value)
                 .monospacedDigit()
+                .lineLimit(1)
                 .frame(width: 64, alignment: .trailing)
         }
         .font(.callout)

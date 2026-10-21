@@ -59,7 +59,7 @@ struct MemoryDetails: View {
                 processes: processes?.byMemory,
                 tint: DashboardSection.memory.tint,
                 measure: { Double($0.memory.bytes) },
-                value: { $0.memory.formatted(.memory) }
+                value: { $0.memory.formattedCompact() }
             )
             .padding(.top, 4)
         }
