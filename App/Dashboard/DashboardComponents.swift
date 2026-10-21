@@ -449,7 +449,7 @@ struct AppList: View {
             if let apps {
                 let top = apps.map(measure).max() ?? 0
                 ForEach(apps) { usage in
-                    row(name: usage.app.name, fraction: top > 0 ? measure(usage) / top : 0, value: value(usage))
+                    row(app: usage.app, fraction: top > 0 ? measure(usage) / top : 0, value: value(usage))
                 }
                 if apps.isEmpty {
                     Text("No apps to show")
@@ -458,7 +458,7 @@ struct AppList: View {
                 }
             } else {
                 ForEach(0..<4, id: \.self) { _ in
-                    row(name: "App name", fraction: 0, value: "0.0%")
+                    row(app: AppIdentity(name: "App name", bundleURL: nil), fraction: 0, value: "0.0%")
                 }
                 .redacted(reason: .placeholder)
             }
@@ -468,11 +468,13 @@ struct AppList: View {
         }
     }
 
-    private func row(name: String, fraction: Double, value: String) -> some View {
+    private func row(app: AppIdentity, fraction: Double, value: String) -> some View {
         HStack(spacing: 8) {
-            Text(name)
+            Image(nsImage: AppIcons.icon(for: app.bundleURL))
+                .resizable()
+                .frame(width: 16, height: 16)
+            Text(app.name)
                 .lineLimit(1)
-                .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
             ProgressBar(fraction: fraction, color: tint)
                 .frame(width: 60)
@@ -483,8 +485,24 @@ struct AppList: View {
         }
         .font(.callout)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(name)
+        .accessibilityLabel(app.name)
         .accessibilityValue(value)
+    }
+}
+
+/// App icons, cached since the lists redraw on every reading.
+@MainActor
+private enum AppIcons {
+    private static var cache: [URL: NSImage] = [:]
+    private static let executable = NSWorkspace.shared.icon(for: .unixExecutable)
+
+    /// The generic executable icon for processes outside an app.
+    static func icon(for bundleURL: URL?) -> NSImage {
+        guard let bundleURL else { return executable }
+        if let icon = cache[bundleURL] { return icon }
+        let icon = NSWorkspace.shared.icon(forFile: bundleURL.path(percentEncoded: false))
+        cache[bundleURL] = icon
+        return icon
     }
 }
 
