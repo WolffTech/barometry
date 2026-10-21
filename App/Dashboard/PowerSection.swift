@@ -31,7 +31,7 @@ struct PowerDetails: View {
     let sensors: SensorSample?
     let battery: BatterySample?
     let history: History<Power>
-    let processes: TopProcesses?
+    let processes: TopApps?
     let isKeepingAwake: Bool
 
     @Environment(\.temperatureUnit) private var temperatureUnit
@@ -70,9 +70,9 @@ struct PowerDetails: View {
                     value: fan.isSpinning ? "\(fan.rpm.formatted(.number.precision(.fractionLength(0)))) RPM" : "Off"
                 )
             }
-            ProcessList(
+            AppList(
                 title: "Top energy use",
-                processes: processes?.byPower,
+                apps: processes?.byPower,
                 tint: DashboardSection.power.tint,
                 measure: \.power.watts,
                 value: \.power.processFormatted

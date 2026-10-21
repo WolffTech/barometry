@@ -26,7 +26,7 @@ struct CPUDetails: View {
     let history: History<CPULoad>
     let frequencies: FrequencySample?
     let temperature: Temperature?
-    let processes: TopProcesses?
+    let processes: TopApps?
 
     @Environment(\.temperatureUnit) private var temperatureUnit
 
@@ -54,7 +54,7 @@ struct CPUDetails: View {
                     )
                 }
             }
-            ProcessList.byCPU(processes, tint: DashboardSection.cpu.tint)
+            AppList.byCPU(processes, tint: DashboardSection.cpu.tint)
         }
     }
 

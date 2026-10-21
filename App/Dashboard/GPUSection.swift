@@ -28,7 +28,7 @@ struct GPUDetails: View {
     let frequency: Frequency?
     let maximumFrequency: Frequency?
     let totalMemory: ByteCount?
-    let processes: TopProcesses?
+    let processes: TopApps?
 
     @Environment(\.temperatureUnit) private var temperatureUnit
 
@@ -51,7 +51,7 @@ struct GPUDetails: View {
                 )
             }
             // macOS doesn't expose GPU time per process without root, so this shows CPU use instead.
-            ProcessList.byCPU(processes, title: "Top processes by CPU", tint: DashboardSection.gpu.tint)
+            AppList.byCPU(processes, title: "Top apps by CPU", tint: DashboardSection.gpu.tint)
         }
     }
 

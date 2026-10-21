@@ -16,7 +16,7 @@ struct Snapshot: Sendable {
     var gpu: GPUSample?
     var sensors: SensorSample?
     var frequencies: FrequencySample?
-    var processes: TopProcesses?
+    var processes: TopApps?
 }
 
 /// Owns the samplers and runs them off the main actor.
@@ -62,12 +62,12 @@ actor SamplingEngine {
         )
     }
 
-    func sampleProcesses() -> TopProcesses? {
+    func sampleProcesses() -> TopApps? {
         processes.sample()
     }
 
     /// Forgets the last reading, so usage restarts cleanly rather than averaging over the gap.
-    private func stopSamplingProcesses() -> TopProcesses? {
+    private func stopSamplingProcesses() -> TopApps? {
         processes.reset()
         return nil
     }
@@ -114,7 +114,7 @@ public final class SystemMonitor {
     public private(set) var sensors: SensorSample?
     public private(set) var frequencies: FrequencySample?
     /// Nil unless `samplesProcesses` is on, and for the first reading after it turns on.
-    public private(set) var processes: TopProcesses?
+    public private(set) var processes: TopApps?
 
     public private(set) var cpuHistory = History<CPULoad>(capacity: historyCapacity)
     public private(set) var networkHistory = History<NetworkSample>(capacity: historyCapacity)
