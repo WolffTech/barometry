@@ -9,9 +9,10 @@ made by Wolff.Tech.
 ## What the app reads
 
 Barometry reads CPU, GPU, memory, disk, network, sensor, and battery
-statistics from macOS, and the names and resource usage of running processes
-for the dashboard's top-process lists. These readings stay in memory for the
-graphs and history and are never written to disk or sent anywhere.
+statistics from macOS. For the dashboard's top-app lists, it also reads the
+resource usage of running processes and the names of the apps responsible
+for them. These readings stay in memory for the graphs and history and are
+never written to disk or sent anywhere.
 
 ## What the app controls
 

@@ -434,31 +434,31 @@ extension RateChart where Element == NetworkSample {
     }
 }
 
-/// The busiest few processes by one measure, with bars relative to the busiest.
+/// The busiest few apps by one measure, with bars relative to the busiest.
 /// Shows placeholder rows until the first usage arrives, so the details don't jump.
-struct ProcessList: View {
+struct AppList: View {
     let title: String
-    let processes: [ProcessUsage]?
+    let apps: [AppUsage]?
     let tint: Color
-    let measure: (ProcessUsage) -> Double
-    let value: (ProcessUsage) -> String
+    let measure: (AppUsage) -> Double
+    let value: (AppUsage) -> String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             DetailsHeading(title)
-            if let processes {
-                let top = processes.map(measure).max() ?? 0
-                ForEach(processes) { process in
-                    row(name: process.name, fraction: top > 0 ? measure(process) / top : 0, value: value(process))
+            if let apps {
+                let top = apps.map(measure).max() ?? 0
+                ForEach(apps) { usage in
+                    row(app: usage.app, fraction: top > 0 ? measure(usage) / top : 0, value: value(usage))
                 }
-                if processes.isEmpty {
-                    Text("No processes to show")
+                if apps.isEmpty {
+                    Text("No apps to show")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
             } else {
                 ForEach(0..<4, id: \.self) { _ in
-                    row(name: "Process name", fraction: 0, value: "0.0%")
+                    row(app: AppIdentity(name: "App name", bundleURL: nil), fraction: 0, value: "0.0%")
                 }
                 .redacted(reason: .placeholder)
             }
@@ -468,22 +468,41 @@ struct ProcessList: View {
         }
     }
 
-    private func row(name: String, fraction: Double, value: String) -> some View {
+    private func row(app: AppIdentity, fraction: Double, value: String) -> some View {
         HStack(spacing: 8) {
-            Text(name)
+            Image(nsImage: AppIcons.icon(for: app.bundleURL))
+                .resizable()
+                .frame(width: 16, height: 16)
+            Text(app.name)
                 .lineLimit(1)
-                .truncationMode(.middle)
                 .frame(maxWidth: .infinity, alignment: .leading)
             ProgressBar(fraction: fraction, color: tint)
                 .frame(width: 60)
             Text(value)
                 .monospacedDigit()
+                .lineLimit(1)
                 .frame(width: 64, alignment: .trailing)
         }
         .font(.callout)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(name)
+        .accessibilityLabel(app.name)
         .accessibilityValue(value)
+    }
+}
+
+/// App icons, cached since the lists redraw on every reading.
+@MainActor
+private enum AppIcons {
+    private static var cache: [URL: NSImage] = [:]
+    private static let executable = NSWorkspace.shared.icon(for: .unixExecutable)
+
+    /// The generic executable icon for processes outside an app.
+    static func icon(for bundleURL: URL?) -> NSImage {
+        guard let bundleURL else { return executable }
+        if let icon = cache[bundleURL] { return icon }
+        let icon = NSWorkspace.shared.icon(forFile: bundleURL.path(percentEncoded: false))
+        cache[bundleURL] = icon
+        return icon
     }
 }
 
@@ -584,9 +603,9 @@ func summary(_ parts: String?...) -> String? {
 /// Shown in place of a reading that isn't available.
 let missingValue = "—"
 
-extension ProcessList {
-    static func byCPU(_ processes: TopProcesses?, title: String = "Top processes", tint: Color) -> some View {
-        ProcessList(title: title, processes: processes?.byCPU, tint: tint, measure: \.cpu.cores) { $0.cpu.formatted() }
+extension AppList {
+    static func byCPU(_ processes: TopApps?, title: String = "Top apps", tint: Color) -> some View {
+        AppList(title: title, apps: processes?.byCPU, tint: tint, measure: \.cpu.cores) { $0.cpu.formatted() }
             .padding(.top, 4)
     }
 }

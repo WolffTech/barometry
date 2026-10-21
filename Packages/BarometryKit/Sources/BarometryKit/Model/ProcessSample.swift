@@ -22,32 +22,61 @@ public struct CPUUsage: Hashable, Comparable, Sendable {
     }
 }
 
-/// One process's resource use over the last interval.
-public struct ProcessUsage: Equatable, Sendable, Identifiable {
+/// The app a group of processes belongs to.
+public struct AppIdentity: Equatable, Sendable {
+    public let name: String
+    /// The app bundle, for its icon. Nil for processes outside an app, such as command-line tools.
+    public let bundleURL: URL?
+
+    public init(name: String, bundleURL: URL?) {
+        self.name = name
+        self.bundleURL = bundleURL
+    }
+
+    /// The outermost app bundle in the path, so helpers nested inside an app, such as
+    /// "Google Chrome Helper (Renderer).app", name the app itself. Otherwise the file name.
+    init(executablePath path: String) {
+        let url = URL(filePath: path)
+        let components = url.pathComponents
+        if let index = components.firstIndex(where: { $0.hasSuffix(".app") }) {
+            let bundle = URL(filePath: NSString.path(withComponents: Array(components[...index])), directoryHint: .isDirectory)
+            self.init(name: bundle.deletingPathExtension().lastPathComponent, bundleURL: bundle)
+        } else {
+            self.init(name: url.lastPathComponent, bundleURL: nil)
+        }
+    }
+}
+
+/// One app's resource use over the last interval, summed over every process macOS holds it
+/// responsible for. That includes helpers outside its bundle, such as Safari's
+/// WebContent processes, and command-line tools started from it, as Activity Monitor's
+/// Energy tab counts them.
+public struct AppUsage: Equatable, Sendable, Identifiable {
+    /// The responsible process's ID.
     public let id: Int32
-    public internal(set) var name: String
+    public internal(set) var app: AppIdentity
     public let cpu: CPUUsage
     /// Physical footprint, as Activity Monitor's "Memory" column.
     public let memory: ByteCount
     public let power: Power
 
-    public init(id: Int32, name: String, cpu: CPUUsage, memory: ByteCount, power: Power) {
+    public init(id: Int32, app: AppIdentity, cpu: CPUUsage, memory: ByteCount, power: Power) {
         self.id = id
-        self.name = name
+        self.app = app
         self.cpu = cpu
         self.memory = memory
         self.power = power
     }
 }
 
-/// The busiest processes by each measure. Only the user's own processes are included,
+/// The busiest apps by each measure. Only the user's own processes are included,
 /// since reading other users' needs root.
-public struct TopProcesses: Equatable, Sendable {
-    public let byCPU: [ProcessUsage]
-    public let byMemory: [ProcessUsage]
-    public let byPower: [ProcessUsage]
+public struct TopApps: Equatable, Sendable {
+    public let byCPU: [AppUsage]
+    public let byMemory: [AppUsage]
+    public let byPower: [AppUsage]
 
-    public init(byCPU: [ProcessUsage], byMemory: [ProcessUsage], byPower: [ProcessUsage]) {
+    public init(byCPU: [AppUsage], byMemory: [AppUsage], byPower: [AppUsage]) {
         self.byCPU = byCPU
         self.byMemory = byMemory
         self.byPower = byPower
@@ -57,6 +86,8 @@ public struct TopProcesses: Equatable, Sendable {
 /// Cumulative counters for one process from `proc_pid_rusage`.
 struct ProcessReading: Equatable {
     let pid: Int32
+    /// The process macOS holds responsible for this one, which may be itself.
+    let owner: Int32
     /// Tells a reused process ID apart from the process that had it before.
     let startTime: UInt64
     /// User and system time, in nanoseconds.
@@ -66,9 +97,9 @@ struct ProcessReading: Equatable {
     let memory: UInt64
 }
 
-/// Turns successive readings of every process into the busiest few.
+/// Turns successive readings of every process into the busiest few apps.
 struct ProcessUsageTracker {
-    /// Processes in each list.
+    /// Apps in each list.
     static let count = 4
     /// Shortest span worth measuring. A tick that lands just after the first reading would
     /// otherwise rank processes by a few milliseconds of noise.
@@ -77,13 +108,14 @@ struct ProcessUsageTracker {
     private var previous: (readings: [Int32: ProcessReading], time: ContinuousClock.Instant)?
 
     /// Returns nil for the first readings, since usage needs two, and for readings too soon
-    /// after the last, which are dropped. Only processes present in both readings are ranked.
-    /// `name` is called only for the processes that make a list.
+    /// after the last, which are dropped. Only processes present in both readings count.
+    /// `identify` is called only for the apps that make a list, with the responsible process
+    /// and one of its processes to fall back on if the responsible one has exited.
     mutating func update(
         _ readings: [ProcessReading],
         at time: ContinuousClock.Instant,
-        name: (Int32) -> String
-    ) -> TopProcesses? {
+        identify: (_ owner: Int32, _ member: Int32) -> AppIdentity
+    ) -> TopApps? {
         if let previous, time - previous.time < Self.minimumInterval {
             return nil
         }
@@ -92,30 +124,48 @@ struct ProcessUsageTracker {
         guard let earlier else { return nil }
         let elapsed = (time - earlier.time).seconds
 
-        // Named later, since looking up a name costs more than reading a process.
-        let measured = readings.compactMap { reading -> ProcessUsage? in
-            guard let before = earlier.readings[reading.pid], before.startTime == reading.startTime else { return nil }
-            return ProcessUsage(
-                id: reading.pid,
-                name: "",
-                cpu: CPUUsage(cores: Double(reading.cpuTime &- before.cpuTime) / 1e9 / elapsed),
-                memory: ByteCount(bytes: Int64(clamping: reading.memory)),
-                power: Power(watts: Double(reading.energy &- before.energy) / 1e9 / elapsed)
+        var totals: [Int32: Totals] = [:]
+        for reading in readings {
+            guard let before = earlier.readings[reading.pid], before.startTime == reading.startTime else { continue }
+            totals[reading.owner, default: Totals(member: reading.pid)].add(reading, since: before)
+        }
+        // Identified later, since looking up an app costs more than reading a process.
+        let measured = totals.map { owner, total in
+            AppUsage(
+                id: owner,
+                app: AppIdentity(name: "", bundleURL: nil),
+                cpu: CPUUsage(cores: Double(total.cpuTime) / 1e9 / elapsed),
+                memory: ByteCount(bytes: Int64(clamping: total.memory)),
+                power: Power(watts: Double(total.energy) / 1e9 / elapsed)
             )
         }
-        var names: [Int32: String] = [:]
-        func top<Value: Comparable>(by value: (ProcessUsage) -> Value) -> [ProcessUsage] {
+        var apps: [Int32: AppIdentity] = [:]
+        func top<Value: Comparable>(by value: (AppUsage) -> Value) -> [AppUsage] {
             measured.sorted { value($0) > value($1) }.prefix(Self.count).map { usage in
-                var named = usage
-                named.name = names[usage.id] ?? name(usage.id)
-                names[usage.id] = named.name
-                return named
+                var identified = usage
+                identified.app = apps[usage.id] ?? identify(usage.id, totals[usage.id]!.member)
+                apps[usage.id] = identified.app
+                return identified
             }
         }
-        return TopProcesses(byCPU: top(by: \.cpu), byMemory: top(by: \.memory), byPower: top(by: \.power))
+        return TopApps(byCPU: top(by: \.cpu), byMemory: top(by: \.memory), byPower: top(by: \.power))
     }
 
     mutating func reset() {
         previous = nil
+    }
+
+    /// One app's usage since the earlier readings.
+    private struct Totals {
+        let member: Int32
+        var cpuTime: UInt64 = 0
+        var energy: UInt64 = 0
+        var memory: UInt64 = 0
+
+        mutating func add(_ reading: ProcessReading, since before: ProcessReading) {
+            cpuTime &+= reading.cpuTime &- before.cpuTime
+            energy &+= reading.energy &- before.energy
+            memory &+= reading.memory
+        }
     }
 }

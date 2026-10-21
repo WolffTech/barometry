@@ -27,7 +27,7 @@ struct MemorySection: View {
 struct MemoryDetails: View {
     let memory: MemorySample
     let history: History<Percent>
-    let processes: TopProcesses?
+    let processes: TopApps?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
@@ -54,12 +54,12 @@ struct MemoryDetails: View {
             if let swap = memory.swapUsed {
                 DetailRow(label: "Swap used", value: swap.bytes == 0 ? "None" : swap.formatted(.memory))
             }
-            ProcessList(
-                title: "Top processes",
-                processes: processes?.byMemory,
+            AppList(
+                title: "Top apps",
+                apps: processes?.byMemory,
                 tint: DashboardSection.memory.tint,
                 measure: { Double($0.memory.bytes) },
-                value: { $0.memory.formatted(.memory) }
+                value: { $0.memory.formattedCompact() }
             )
             .padding(.top, 4)
         }
