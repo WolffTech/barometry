@@ -92,6 +92,72 @@ struct MoveCommands: View {
     }
 }
 
+extension View {
+    /// Drag-to-reorder for a row in a `Form`, where `onMove` does nothing on macOS.
+    /// Rows move live as the dragged one passes over them.
+    func reorderable<Item: Hashable>(
+        _ item: Item,
+        in order: [Item],
+        dragging: Binding<Item?>,
+        isEnabled: Bool = true,
+        move: @escaping (IndexSet, Int) -> Void
+    ) -> some View {
+        modifier(Reorderable(item: item, order: order, dragging: dragging, isEnabled: isEnabled, move: move))
+    }
+}
+
+private struct Reorderable<Item: Hashable>: ViewModifier {
+    let item: Item
+    let order: [Item]
+    @Binding var dragging: Item?
+    let isEnabled: Bool
+    let move: (IndexSet, Int) -> Void
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content
+                .onDrag {
+                    dragging = item
+                    return NSItemProvider(object: String(describing: item) as NSString)
+                }
+                .onDrop(of: [.text], delegate: ReorderDropDelegate(item: item, order: order, dragging: $dragging, move: move))
+        } else {
+            content
+        }
+    }
+}
+
+private struct ReorderDropDelegate<Item: Hashable>: DropDelegate {
+    let item: Item
+    let order: [Item]
+    @Binding var dragging: Item?
+    let move: (IndexSet, Int) -> Void
+
+    func validateDrop(info: DropInfo) -> Bool {
+        dragging != nil
+    }
+
+    func dropEntered(info: DropInfo) {
+        guard let dragging, dragging != item,
+              let source = order.firstIndex(of: dragging),
+              let target = order.firstIndex(of: item)
+        else { return }
+        // `onMove` offsets: landing below a row means inserting after it.
+        withAnimation {
+            move([source], target > source ? target + 1 : target)
+        }
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        dragging = nil
+        return true
+    }
+}
+
 extension MenuBarModule {
     var symbol: String {
         switch self {

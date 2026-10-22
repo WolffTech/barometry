@@ -6,6 +6,7 @@ import SwiftUI
 
 struct DashboardPane: View {
     @Bindable var preferences: Preferences
+    @State private var draggedSection: DashboardSection?
 
     var body: some View {
         Form {
@@ -35,11 +36,11 @@ struct DashboardPane: View {
                     )
                 }
                 .toggleStyle(.switch)
+                .reorderable(section, in: order, dragging: $draggedSection, move: preferences.moveDashboardSections)
                 .contextMenu {
                     MoveCommands(index: index, count: order.count, move: preferences.moveDashboardSections)
                 }
             }
-            .onMove(perform: preferences.moveDashboardSections)
         } header: {
             Text("Sections")
         } footer: {
