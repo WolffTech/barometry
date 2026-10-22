@@ -7,6 +7,7 @@ import SwiftUI
 struct MenuBarPane: View {
     @Bindable var preferences: Preferences
     let statusItems: StatusItemController
+    @State private var draggedModule: MenuBarModule?
 
     var body: some View {
         Form {
@@ -52,7 +53,9 @@ struct MenuBarPane: View {
                 .toggleStyle(.switch)
                 // The last module that's always shown stays so there's always an item to click.
                 .disabled(!selection.isAvailable(module) || !selection.canHide(module))
-                .moveDisabled(!isMovable)
+                .reorderable(module, in: selection.order, dragging: $draggedModule, isEnabled: isMovable) { source, destination in
+                    preferences.menuBarModules.move(fromOffsets: source, toOffset: destination)
+                }
                 .contextMenu {
                     if isMovable {
                         MoveCommands(index: index, count: selection.order.count) { source, destination in
@@ -60,9 +63,6 @@ struct MenuBarPane: View {
                         }
                     }
                 }
-            }
-            .onMove { source, destination in
-                preferences.menuBarModules.move(fromOffsets: source, toOffset: destination)
             }
         } header: {
             Text("Modules")
