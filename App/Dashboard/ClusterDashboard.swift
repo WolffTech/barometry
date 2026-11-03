@@ -227,30 +227,151 @@ private struct RingTile: View {
 }
 
 /// Barometer-style gauge: a 240° arc filled to `fraction`, with ticks and a needle.
-/// Not animated: SwiftUI re-renders the whole dashboard on every animation frame, which
-/// cost about 20% CPU with a reading every second.
+/// The fill and needle move in Core Animation layers, which the render server animates
+/// without SwiftUI. Animating them in SwiftUI re-rendered the whole dashboard on every
+/// frame, which cost about 20% CPU with a reading every second.
 struct Dial: View {
     let fraction: Double
     let tint: Color
 
     var body: some View {
-        let fraction = min(max(fraction, 0), 1)
         GeometryReader { geometry in
-            let lineWidth = geometry.size.width * 7 / DialGeometry.width
             ZStack {
                 DialArc(fraction: 1)
-                    .stroke(DashboardPalette.track, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
-                DialArc(fraction: fraction)
-                    .stroke(tint, style: StrokeStyle(lineWidth: lineWidth, lineCap: .round))
+                    .stroke(
+                        DashboardPalette.track,
+                        style: StrokeStyle(lineWidth: DialGeometry.lineWidth(forWidth: geometry.size.width), lineCap: .round)
+                    )
                 DialTicks()
                     .stroke(.tertiary, lineWidth: 1)
-                DialNeedle(fraction: fraction)
-                    .stroke(.primary, style: StrokeStyle(lineWidth: lineWidth / 3, lineCap: .round))
-                DialHub()
-                    .fill(.primary)
+                DialIndicator(fraction: min(max(fraction, 0), 1), tint: tint)
+                    .allowsHitTesting(false)
             }
         }
         .aspectRatio(DialGeometry.width / DialGeometry.height, contentMode: .fit)
+    }
+}
+
+/// The dial's fill, needle, and hub, drawn by `DialIndicatorView`.
+private struct DialIndicator: NSViewRepresentable {
+    let fraction: Double
+    let tint: Color
+
+    // Read so that SwiftUI calls `updateNSView` to re-resolve the colors when they change.
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    func makeNSView(context: Context) -> DialIndicatorView {
+        DialIndicatorView()
+    }
+
+    func updateNSView(_ view: DialIndicatorView, context: Context) {
+        view.show(
+            fraction: fraction,
+            tint: tint.resolve(in: context.environment).cgColor,
+            needle: Color.primary.resolve(in: context.environment).cgColor,
+            animated: !reduceMotion
+        )
+    }
+}
+
+/// Layers for the moving parts of a dial. The fill is a full-sweep arc trimmed with
+/// `strokeEnd`, and the needle is drawn at zero and rotated about the hub, so a new reading
+/// only hands the render server two animations and never rebuilds a path.
+private final class DialIndicatorView: NSView {
+    private let arc = CAShapeLayer()
+    private let needle = CAShapeLayer()
+    private let hub = CAShapeLayer()
+    /// The last fraction shown, or `nil` before the first, which appears without animating.
+    private var fraction: Double?
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        arc.fillColor = nil
+        arc.lineCap = .round
+        needle.fillColor = nil
+        needle.lineCap = .round
+        for sublayer in [arc, needle, hub] {
+            layer?.addSublayer(sublayer)
+        }
+    }
+
+    @available(*, unavailable)
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    // Matches SwiftUI's downward y axis, so the shared dial geometry applies unchanged.
+    override var isFlipped: Bool { true }
+
+    // Clicks and hovers belong to the tile around the dial.
+    override func hitTest(_ point: NSPoint) -> NSView? { nil }
+
+    override func viewDidChangeBackingProperties() {
+        super.viewDidChangeBackingProperties()
+        let scale = window?.backingScaleFactor ?? 2
+        for sublayer in [arc, needle, hub] {
+            sublayer.contentsScale = scale
+        }
+    }
+
+    override func layout() {
+        super.layout()
+        let geometry = DialGeometry(bounds)
+        let lineWidth = DialGeometry.lineWidth(forWidth: bounds.width)
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        arc.frame = bounds
+        arc.lineWidth = lineWidth
+        arc.path = DialArc(fraction: 1).path(in: bounds).cgPath
+        // Needle coordinates match the view's, with the anchor on the hub so it turns there.
+        needle.bounds = CGRect(origin: .zero, size: bounds.size)
+        needle.anchorPoint = bounds.width > 0 && bounds.height > 0
+            ? CGPoint(x: geometry.center.x / bounds.width, y: geometry.center.y / bounds.height)
+            : CGPoint(x: 0.5, y: 0.5)
+        needle.position = geometry.center
+        needle.lineWidth = lineWidth / 3
+        needle.path = DialNeedle(fraction: 0).path(in: bounds).cgPath
+        hub.frame = bounds
+        hub.path = DialHub().path(in: bounds).cgPath
+        CATransaction.commit()
+    }
+
+    func show(fraction: Double, tint: CGColor, needle needleColor: CGColor, animated: Bool) {
+        // A sliver, not zero, so an empty dial still shows the arc's round cap.
+        let strokeEnd = max(fraction, 0.001)
+        let rotation = DialGeometry.sweepDegrees * fraction * .pi / 180
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        arc.strokeColor = tint
+        needle.strokeColor = needleColor
+        hub.fillColor = needleColor
+        if animated, let previous = self.fraction, previous != fraction {
+            // Start from what's on screen, in case a reading lands mid-animation.
+            let shownEnd = arc.presentation()?.strokeEnd ?? arc.strokeEnd
+            // The rotation reads back in -180°...180°, so angles past 180° come back negative.
+            // Unwrap them into the dial's 0°...240°, splitting the unused 240°...360° gap, or
+            // the needle would spin the long way round.
+            let readRotation = (needle.presentation() ?? needle).value(forKeyPath: "transform.rotation.z") as? Double ?? 0
+            let shownRotation = readRotation < -.pi / 3 ? readRotation + 2 * .pi : readRotation
+            arc.add(Self.animation("strokeEnd", from: shownEnd, to: strokeEnd), forKey: "fill")
+            needle.add(Self.animation("transform.rotation.z", from: shownRotation, to: rotation), forKey: "needle")
+        }
+        arc.strokeEnd = strokeEnd
+        needle.setValue(rotation, forKeyPath: "transform.rotation.z")
+        CATransaction.commit()
+        self.fraction = fraction
+    }
+
+    /// The motion of SwiftUI's `.smooth`: a half-second spring without bounce.
+    private static func animation(_ keyPath: String, from: Any?, to: Any) -> CASpringAnimation {
+        let animation = CASpringAnimation(perceptualDuration: 0.5, bounce: 0)
+        animation.keyPath = keyPath
+        animation.fromValue = from
+        animation.toValue = to
+        animation.duration = animation.settlingDuration
+        return animation
     }
 }
 
@@ -275,6 +396,10 @@ private nonisolated struct DialGeometry {
         .degrees(startDegrees + sweepDegrees * fraction)
     }
 
+    static func lineWidth(forWidth width: CGFloat) -> CGFloat {
+        width * 7 / Self.width
+    }
+
     func point(at angle: Angle, radius: Double) -> CGPoint {
         CGPoint(
             x: center.x + radius * scale * cos(angle.radians),
@@ -284,12 +409,7 @@ private nonisolated struct DialGeometry {
 }
 
 private nonisolated struct DialArc: Shape {
-    var fraction: Double
-
-    var animatableData: Double {
-        get { fraction }
-        set { fraction = newValue }
-    }
+    let fraction: Double
 
     func path(in rect: CGRect) -> Path {
         let geometry = DialGeometry(rect)
@@ -320,12 +440,7 @@ private nonisolated struct DialTicks: Shape {
 }
 
 private nonisolated struct DialNeedle: Shape {
-    var fraction: Double
-
-    var animatableData: Double {
-        get { fraction }
-        set { fraction = newValue }
-    }
+    let fraction: Double
 
     func path(in rect: CGRect) -> Path {
         let geometry = DialGeometry(rect)
