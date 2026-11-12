@@ -48,6 +48,22 @@ struct SensorTests {
         #expect(table == [Frequency(megahertz: 744), Frequency(megahertz: 2748)])
     }
 
+    @Test func accClustersMapClusterIDsToVoltageStateTables() {
+        let m5Max: [UInt8] = [0x16, 0, 0, 0, 0, 0, 0, 0, 0x17, 1, 0, 0, 0, 0, 0, 0, 0x05, 2, 0, 0, 0, 0, 0, 0]
+
+        #expect(DVFS.voltageStateIndices(fromAccClusters: m5Max) == [0: 22, 1: 23, 2: 5])
+    }
+
+    @Test func headlineCPUFrequencyIsTheFastestKindThatRan() {
+        let frequencies = FrequencySample(
+            cores: [.performance: Frequency(megahertz: 1344), .super: Frequency(megahertz: 4608)],
+            gpu: nil,
+            gpuMaximum: nil
+        )
+
+        #expect(frequencies.cpu == Frequency(megahertz: 4608))
+    }
+
     @Test func decodesSMCDataTypes() {
         let float = Float(43.5).bitPattern
         let floatBytes = (0..<4).map { UInt8(truncatingIfNeeded: float >> ($0 * 8)) }

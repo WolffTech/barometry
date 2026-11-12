@@ -5,7 +5,7 @@ import Darwin
 
 struct CPUSampler {
     private let host = mach_host_self()
-    private let kinds = CoreTopology.current()
+    private let kinds = CoreTopology.current().kinds
     private var previous: [CPUTicks]?
 
     /// Returns nil on the first call, since load needs two readings.

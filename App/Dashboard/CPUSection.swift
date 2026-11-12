@@ -45,21 +45,17 @@ struct CPUDetails: View {
             }
             DetailsHeading("Cores")
             CoreGrid(cores: cpu.cores)
-            ForEach([CoreKind.efficiency, .performance], id: \.self) { kind in
+            ForEach(CoreKind.allCases, id: \.self) { kind in
                 if let average = cpu.averageLoad(of: kind) {
                     let count = cpu.cores.count { $0.kind == kind }
                     DetailRow(
                         label: "\(kind.name) · \(count)",
-                        value: summary(average.formatted(), frequency(of: kind)?.formatted()) ?? missingValue
+                        value: summary(average.formatted(), frequencies?.cores[kind]?.formatted()) ?? missingValue
                     )
                 }
             }
             AppList.byCPU(processes, tint: DashboardSection.cpu.tint)
         }
-    }
-
-    private func frequency(of kind: CoreKind) -> Frequency? {
-        kind == .efficiency ? frequencies?.efficiencyCores : frequencies?.performanceCores
     }
 }
 
@@ -86,7 +82,7 @@ private struct LoadChart: View {
     }
 }
 
-/// One cell per core, shaded by load, with efficiency cores first.
+/// One cell per core, shaded by load, with the slowest cores first.
 private struct CoreGrid: View {
     let cores: [CoreLoad]
 
@@ -125,6 +121,7 @@ private extension CoreKind {
         switch self {
         case .efficiency: "Efficiency"
         case .performance: "Performance"
+        case .super: "Super"
         }
     }
 
@@ -132,6 +129,7 @@ private extension CoreKind {
         switch self {
         case .efficiency: "E"
         case .performance: "P"
+        case .super: "S"
         }
     }
 }
