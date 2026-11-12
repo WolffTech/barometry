@@ -50,16 +50,12 @@ struct CPUDetails: View {
                     let count = cpu.cores.count { $0.kind == kind }
                     DetailRow(
                         label: "\(kind.name) · \(count)",
-                        value: summary(average.formatted(), frequency(of: kind)?.formatted()) ?? missingValue
+                        value: summary(average.formatted(), frequencies?.cores[kind]?.formatted()) ?? missingValue
                     )
                 }
             }
             AppList.byCPU(processes, tint: DashboardSection.cpu.tint)
         }
-    }
-
-    private func frequency(of kind: CoreKind) -> Frequency? {
-        kind == .efficiency ? frequencies?.efficiencyCores : frequencies?.performanceCores
     }
 }
 

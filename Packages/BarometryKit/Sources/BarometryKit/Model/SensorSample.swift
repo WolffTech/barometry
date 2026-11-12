@@ -56,22 +56,20 @@ public struct GPUSample: Equatable, Sendable {
 /// Average clock speed while active, over the last interval. Nil when the unit was idle
 /// for the whole interval.
 public struct FrequencySample: Equatable, Sendable {
-    public let efficiencyCores: Frequency?
-    public let performanceCores: Frequency?
+    public let cores: [CoreKind: Frequency]
     public let gpu: Frequency?
     /// Highest clock in each table, for scaling gauges.
     public let gpuMaximum: Frequency?
 
-    public init(efficiencyCores: Frequency?, performanceCores: Frequency?, gpu: Frequency?, gpuMaximum: Frequency?) {
-        self.efficiencyCores = efficiencyCores
-        self.performanceCores = performanceCores
+    public init(cores: [CoreKind: Frequency], gpu: Frequency?, gpuMaximum: Frequency?) {
+        self.cores = cores
         self.gpu = gpu
         self.gpuMaximum = gpuMaximum
     }
 
-    /// The headline CPU clock: performance cores when they ran, otherwise efficiency cores.
+    /// The headline CPU clock: the fastest core kind that ran.
     public var cpu: Frequency? {
-        performanceCores ?? efficiencyCores
+        CoreKind.allCases.reversed().lazy.compactMap { cores[$0] }.first
     }
 }
 
@@ -92,6 +90,11 @@ enum DVFS {
         }
         guard total > 0 else { return nil }
         return Frequency(hertz: weighted / total)
+    }
+
+    static func voltageStateIndices(fromAccClusters data: [UInt8]) -> [Int: Int] {
+        let entries = stride(from: 0, to: data.count - 7, by: 8).map { (cluster: Int(data[$0 + 1]), table: Int(data[$0])) }
+        return Dictionary(entries.map { ($0.cluster, $0.table) }) { first, _ in first }
     }
 
     /// Frequencies from a device tree `voltage-states` property: little-endian

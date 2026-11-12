@@ -11,23 +11,52 @@ struct FrequencySampler {
         ("CPU Stats", "CPU Complex Performance States"),
         ("GPU Stats", "GPU Performance States"),
     ])
-    private let efficiencyTable: [Frequency]
-    private let performanceTable: [Frequency]
+    private struct CoreCluster {
+        let kind: CoreKind
+        let channelPrefix: String
+        let table: [Frequency]
+    }
+
+    private static let legacyCoreTableKeys: [Character: String] = ["E": "voltage-states1-sram", "P": "voltage-states5-sram"]
+
+    private let coreClusters: [CoreCluster]
     private let gpuTable: [Frequency]
 
     init() {
-        let tables = Self.voltageStateTables(["voltage-states1-sram", "voltage-states5-sram", "voltage-states9"])
-        efficiencyTable = tables[0]
-        performanceTable = tables[1]
-        gpuTable = tables[2]
+        let pmgr = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceNameMatching("pmgr"))
+        defer { IOObjectRelease(pmgr) }
+        func data(_ key: String) -> [UInt8]? {
+            guard pmgr != IO_OBJECT_NULL,
+                  let value = IORegistryEntryCreateCFProperty(pmgr, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data
+            else { return nil }
+            return Array(value)
+        }
+        func table(_ key: String) -> [Frequency] {
+            data(key).map(DVFS.frequencyTable(fromVoltageStates:)) ?? []
+        }
+
+        let clusters = CoreTopology.current().clusters
+        let kindByType = clusters.isEmpty
+            ? ["E": .efficiency, "P": .performance]
+            : Dictionary(clusters.map { ($0.type, $0.kind) }) { first, _ in first }
+        let voltageStatesByCluster = data("acc-clusters").map(DVFS.voltageStateIndices(fromAccClusters:)) ?? [:]
+
+        coreClusters = kindByType.sorted { $0.key < $1.key }.map { type, kind in
+            let legacyTable = Self.legacyCoreTableKeys[type].map(table) ?? []
+            let discoveredTable = clusters.first { $0.type == type }
+                .flatMap { voltageStatesByCluster[$0.id] }
+                .map { table("voltage-states\($0)-sram") } ?? []
+            return CoreCluster(kind: kind, channelPrefix: "\(type)CPU", table: legacyTable.isEmpty ? discoveredTable : legacyTable)
+        }
+        gpuTable = table("voltage-states9")
     }
 
     /// Nil on the first call and when IOReport is unavailable.
     func sample() -> FrequencySample? {
         guard let channels = subscription?.sample(), !channels.isEmpty else { return nil }
 
-        // Channel names: ECPU/PCPU per cluster (with a trailing number on multi-cluster chips),
-        // ECPM/PCPM for cluster memory, which is skipped, and GPUPH for the GPU.
+        // Channel names: ECPU/MCPU/PCPU per cluster (with a trailing number on multi-cluster chips),
+        // ECPM/MCPM/PCPM for cluster memory, which is skipped, and GPUPH for the GPU.
         func frequency(prefix: String, table: [Frequency]) -> Frequency? {
             let states = channels
                 .filter { $0.name.hasPrefix(prefix) }
@@ -35,9 +64,11 @@ struct FrequencySampler {
             return DVFS.averageFrequency(states: Self.mergeByName(states), table: table)
         }
 
+        let cores = coreClusters.compactMap { cluster in
+            frequency(prefix: cluster.channelPrefix, table: cluster.table).map { (cluster.kind, $0) }
+        }
         return FrequencySample(
-            efficiencyCores: frequency(prefix: "ECPU", table: efficiencyTable),
-            performanceCores: frequency(prefix: "PCPU", table: performanceTable),
+            cores: Dictionary(cores) { first, _ in first },
             gpu: frequency(prefix: "GPUPH", table: gpuTable),
             gpuMaximum: gpuTable.max()
         )
@@ -56,13 +87,4 @@ struct FrequencySampler {
         return order.map { ($0, totals[$0] ?? 0) }
     }
 
-    private static func voltageStateTables(_ keys: [String]) -> [[Frequency]] {
-        let pmgr = IOServiceGetMatchingService(kIOMainPortDefault, IOServiceNameMatching("pmgr"))
-        guard pmgr != IO_OBJECT_NULL else { return keys.map { _ in [] } }
-        defer { IOObjectRelease(pmgr) }
-        return keys.map { key in
-            guard let data = IORegistryEntryCreateCFProperty(pmgr, key as CFString, kCFAllocatorDefault, 0)?.takeRetainedValue() as? Data else { return [] }
-            return DVFS.frequencyTable(fromVoltageStates: Array(data))
-        }
-    }
 }
