@@ -1,9 +1,19 @@
 // SPDX-FileCopyrightText: 2026 Nick Wolff <nick@wolff.tech>
 // SPDX-License-Identifier: GPL-3.0-only
 
-public enum CoreKind: Sendable {
+public enum CoreKind: Sendable, CaseIterable {
     case efficiency
     case performance
+    case `super`
+
+    init?(perflevelName: String) {
+        switch perflevelName {
+        case "Efficiency": self = .efficiency
+        case "Performance": self = .performance
+        case "Super": self = .super
+        default: return nil
+        }
+    }
 }
 
 /// Cumulative scheduler ticks for one logical CPU since boot.

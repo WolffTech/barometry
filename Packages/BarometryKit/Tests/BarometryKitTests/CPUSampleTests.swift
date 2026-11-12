@@ -86,7 +86,73 @@ struct CPUSampleTests {
         #expect(sample.total == .idle)
     }
 
-    @Test func fallbackTopologyListsEfficiencyCoresFirst() {
-        #expect(CoreTopology.fallbackKinds(efficiency: 2, performance: 3) == [.efficiency, .efficiency, .performance, .performance, .performance])
+    @Test func perflevelTopologyListsSlowestCoresFirst() {
+        let topology = CoreTopology(levels: [
+            .init(kind: .super, logicalCPUs: 2),
+            .init(kind: .performance, logicalCPUs: 3),
+        ])
+
+        #expect(topology.kinds == [.performance, .performance, .performance, .super, .super])
+    }
+
+    @Test func m4ClusterTypesMapToEfficiencyAndPerformance() throws {
+        let topology = try #require(CoreTopology(
+            cpus: [cpu(0, cluster: 0, "E"), cpu(1, cluster: 1, "P")],
+            levels: [.init(kind: .performance, logicalCPUs: 1), .init(kind: .efficiency, logicalCPUs: 1)]
+        ))
+
+        #expect(topology.kinds == [.efficiency, .performance])
+    }
+
+    @Test func m5MaxClusterTypesMapToPerformanceAndSuper() throws {
+        let topology = try #require(CoreTopology(
+            cpus: [cpu(0, cluster: 0, "M"), cpu(1, cluster: 1, "M"), cpu(2, cluster: 2, "P")],
+            levels: [.init(kind: .super, logicalCPUs: 1), .init(kind: .performance, logicalCPUs: 2)]
+        ))
+
+        #expect(topology.kinds == [.performance, .performance, .super])
+        #expect(topology.clusters == [
+            .init(id: 0, type: "M", kind: .performance),
+            .init(id: 1, type: "M", kind: .performance),
+            .init(id: 2, type: "P", kind: .super),
+        ])
+    }
+
+    @Test func baseM5ClusterTypesMapToEfficiencyAndSuper() throws {
+        let topology = try #require(CoreTopology(
+            cpus: [cpu(0, cluster: 0, "E"), cpu(1, cluster: 1, "P")],
+            levels: [.init(kind: .super, logicalCPUs: 1), .init(kind: .efficiency, logicalCPUs: 1)]
+        ))
+
+        #expect(topology.kinds == [.efficiency, .super])
+    }
+
+    @Test func clusterTypesFollowLogicalNumberingAcrossDies() throws {
+        let topology = try #require(CoreTopology(
+            cpus: [cpu(0, cluster: 0, "E"), cpu(1, cluster: 1, "P"), cpu(2, cluster: 2, "E"), cpu(3, cluster: 3, "P")],
+            levels: [.init(kind: .performance, logicalCPUs: 2), .init(kind: .efficiency, logicalCPUs: 2)]
+        ))
+
+        #expect(topology.kinds == [.efficiency, .performance, .efficiency, .performance])
+    }
+
+    @Test func clusterTypesThatDisagreeWithPerflevelsAreRejected() {
+        let topology = CoreTopology(
+            cpus: [cpu(0, cluster: 0, "E"), cpu(1, cluster: 1, "P")],
+            levels: [.init(kind: .performance, logicalCPUs: 2)]
+        )
+
+        #expect(topology == nil)
+    }
+
+    @Test func classifiesPerflevelNames() {
+        #expect(CoreKind(perflevelName: "Efficiency") == .efficiency)
+        #expect(CoreKind(perflevelName: "Performance") == .performance)
+        #expect(CoreKind(perflevelName: "Super") == .super)
+        #expect(CoreKind(perflevelName: "Turbo") == nil)
+    }
+
+    private func cpu(_ id: Int, cluster: Int, _ type: Character) -> CoreTopology.CPUNode {
+        CoreTopology.CPUNode(logicalID: id, clusterID: cluster, clusterType: type)
     }
 }
